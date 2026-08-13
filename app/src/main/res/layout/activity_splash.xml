@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#FFFFFF">
+
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:src="@drawable/expense_logo"
+        android:scaleType="fitCenter"
+        android:contentDescription="Expense Tracker Logo" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="Expense Tracker"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#1A1A1A" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Manage your money easily"
+        android:textSize="14sp"
+        android:textColor="#777777" />
+
+</LinearLayout>
