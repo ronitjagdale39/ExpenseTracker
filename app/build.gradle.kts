@@ -29,7 +29,8 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.mlkit.text.recognition)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     // AndroidX
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.core:core-ktx:1.17.0")

@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F7FA">
@@ -12,9 +14,12 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Header -->
+        <!-- ========================================= -->
+        <!-- HEADER -->
+        <!-- ========================================= -->
 
         <TextView
+            android:id="@+id/tvTransactionTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Add Transaction"
@@ -30,7 +35,10 @@
             android:textColor="#777777"
             android:textSize="14sp" />
 
-        <!-- Amount -->
+
+        <!-- ========================================= -->
+        <!-- AMOUNT -->
+        <!-- ========================================= -->
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -51,7 +59,10 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Description -->
+
+        <!-- ========================================= -->
+        <!-- DESCRIPTION -->
+        <!-- ========================================= -->
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -72,7 +83,25 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Category -->
+
+        <!-- ========================================= -->
+        <!-- OCR / SCAN RECEIPT -->
+        <!-- ========================================= -->
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnScanReceipt"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="16dp"
+            android:text="📷  Scan Receipt"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:cornerRadius="14dp" />
+
+
+        <!-- ========================================= -->
+        <!-- CATEGORY -->
+        <!-- ========================================= -->
 
         <TextView
             android:layout_width="wrap_content"
@@ -89,7 +118,10 @@
             android:layout_height="55dp"
             android:layout_marginTop="8dp" />
 
-        <!-- Transaction Type -->
+
+        <!-- ========================================= -->
+        <!-- TRANSACTION TYPE -->
+        <!-- ========================================= -->
 
         <TextView
             android:layout_width="wrap_content"
@@ -124,7 +156,10 @@
 
         </RadioGroup>
 
-        <!-- Save Button -->
+
+        <!-- ========================================= -->
+        <!-- SAVE / UPDATE -->
+        <!-- ========================================= -->
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveTransaction"

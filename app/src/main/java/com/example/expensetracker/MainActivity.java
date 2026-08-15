@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -36,40 +37,53 @@ public class MainActivity extends AppCompatActivity {
             Executors.newSingleThreadExecutor();
 
 
+    // =========================================
+    // ON CREATE
+    // =========================================
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
 
-        // -----------------------------
+
+        // -----------------------------------------
         // Find Views
-        // -----------------------------
+        // -----------------------------------------
 
-        tvBalance = findViewById(R.id.tvBalance);
-        tvIncome = findViewById(R.id.tvIncome);
-        tvExpense = findViewById(R.id.tvExpense);
+        tvBalance =
+                findViewById(R.id.tvBalance);
 
-        btnAddTransaction = findViewById(R.id.btnAddTransaction);
+        tvIncome =
+                findViewById(R.id.tvIncome);
+
+        tvExpense =
+                findViewById(R.id.tvExpense);
+
+        btnAddTransaction =
+                findViewById(R.id.btnAddTransaction);
 
         recyclerTransactions =
                 findViewById(R.id.recyclerTransactions);
 
 
-        // -----------------------------
-        // RecyclerView Setup
-        // -----------------------------
+        // -----------------------------------------
+        // RecyclerView
+        // -----------------------------------------
 
         recyclerTransactions.setLayoutManager(
                 new LinearLayoutManager(this)
         );
 
-        recyclerTransactions.setNestedScrollingEnabled(false);
+        recyclerTransactions.setNestedScrollingEnabled(
+                false
+        );
 
 
-        // -----------------------------
-        // Database Setup
-        // -----------------------------
+        // -----------------------------------------
+        // Database
+        // -----------------------------------------
 
         AppDatabase database =
                 AppDatabase.getInstance(this);
@@ -78,9 +92,9 @@ public class MainActivity extends AppCompatActivity {
                 database.transactionDao();
 
 
-        // -----------------------------
-        // Add Transaction Button
-        // -----------------------------
+        // -----------------------------------------
+        // Add Transaction
+        // -----------------------------------------
 
         btnAddTransaction.setOnClickListener(view -> {
 
@@ -93,17 +107,17 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-        // -----------------------------
+        // -----------------------------------------
         // Load Dashboard
-        // -----------------------------
+        // -----------------------------------------
 
         loadDashboard();
     }
 
 
-    // --------------------------------------------------
-    // Refresh Dashboard when Activity comes back
-    // --------------------------------------------------
+    // =========================================
+    // ON RESUME
+    // =========================================
 
     @Override
     protected void onResume() {
@@ -115,23 +129,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    // --------------------------------------------------
-    // Load Income, Expense, Balance & Transactions
-    // --------------------------------------------------
+    // =========================================
+    // LOAD DASHBOARD
+    // =========================================
 
     private void loadDashboard() {
 
         executorService.execute(() -> {
 
-            // Get total income
+            // -----------------------------------------
+            // Total Income
+            // -----------------------------------------
+
             Double income =
                     transactionDao.getTotalIncome();
 
-            // Get total expense
+
+            // -----------------------------------------
+            // Total Expense
+            // -----------------------------------------
+
             Double expense =
                     transactionDao.getTotalExpense();
 
-            // Prevent null values
+
+            // -----------------------------------------
+            // Prevent null
+            // -----------------------------------------
+
             if (income == null) {
                 income = 0.0;
             }
@@ -140,27 +165,40 @@ public class MainActivity extends AppCompatActivity {
                 expense = 0.0;
             }
 
-            // Calculate balance
+
+            // -----------------------------------------
+            // Calculate Balance
+            // -----------------------------------------
+
             double balance =
                     income - expense;
 
-            // Get all transactions
+
+            // -----------------------------------------
+            // Get Transactions
+            // -----------------------------------------
+
             List<Transaction> transactions =
                     transactionDao.getAllTransactions();
 
 
+            // -----------------------------------------
             // Final values for UI thread
+            // -----------------------------------------
+
             double finalIncome = income;
             double finalExpense = expense;
             double finalBalance = balance;
 
 
+            // -----------------------------------------
             // Update UI
+            // -----------------------------------------
+
             runOnUiThread(() -> {
 
-                // -----------------------------
+
                 // Income
-                // -----------------------------
 
                 tvIncome.setText(
                         String.format(
@@ -171,9 +209,7 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-                // -----------------------------
                 // Expense
-                // -----------------------------
 
                 tvExpense.setText(
                         String.format(
@@ -184,9 +220,7 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-                // -----------------------------
                 // Balance
-                // -----------------------------
 
                 tvBalance.setText(
                         String.format(
@@ -197,14 +231,16 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-                // -----------------------------
-                // Recent Transactions
-                // -----------------------------
+                // -----------------------------------------
+                // RecyclerView Adapter
+                // -----------------------------------------
 
                 transactionAdapter =
                         new TransactionAdapter(
-                                transactions
+                                transactions,
+                                this::deleteTransaction
                         );
+
 
                 recyclerTransactions.setAdapter(
                         transactionAdapter
@@ -214,9 +250,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    // --------------------------------------------------
-    // Cleanup
-    // --------------------------------------------------
+    // =========================================
+    // DELETE TRANSACTION
+    // =========================================
+
+    private void deleteTransaction(
+            Transaction transaction) {
+
+        executorService.execute(() -> {
+
+            // -----------------------------------------
+            // Delete from Room Database
+            // -----------------------------------------
+
+            transactionDao.delete(transaction);
+
+
+            // -----------------------------------------
+            // Refresh Dashboard
+            // -----------------------------------------
+
+            runOnUiThread(() -> {
+
+                Toast.makeText(
+                        MainActivity.this,
+                        "Transaction deleted",
+                        Toast.LENGTH_SHORT
+                ).show();
+
+
+                loadDashboard();
+            });
+        });
+    }
+
+
+    // =========================================
+    // CLEANUP
+    // =========================================
 
     @Override
     protected void onDestroy() {
