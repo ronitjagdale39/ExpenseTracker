@@ -26,6 +26,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvExpense;
 
     private Button btnAddTransaction;
+    private Button btnAnalytics;
+    private Button btnSettings;
 
     private RecyclerView recyclerTransactions;
 
@@ -37,40 +39,44 @@ public class MainActivity extends AppCompatActivity {
             Executors.newSingleThreadExecutor();
 
 
-    // =========================================
+    // =====================================================
     // ON CREATE
-    // =========================================
+    // =====================================================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
 
 
-        // -----------------------------------------
-        // Find Views
-        // -----------------------------------------
+        // =================================================
+        // FIND VIEWS
+        // =================================================
 
-        tvBalance =
-                findViewById(R.id.tvBalance);
+        tvBalance = findViewById(R.id.tvBalance);
 
-        tvIncome =
-                findViewById(R.id.tvIncome);
+        tvIncome = findViewById(R.id.tvIncome);
 
-        tvExpense =
-                findViewById(R.id.tvExpense);
+        tvExpense = findViewById(R.id.tvExpense);
 
         btnAddTransaction =
                 findViewById(R.id.btnAddTransaction);
+
+        btnAnalytics =
+                findViewById(R.id.btnAnalytics);
+
+        btnSettings =
+                findViewById(R.id.btnSettings);
 
         recyclerTransactions =
                 findViewById(R.id.recyclerTransactions);
 
 
-        // -----------------------------------------
-        // RecyclerView
-        // -----------------------------------------
+        // =================================================
+        // RECYCLER VIEW
+        // =================================================
 
         recyclerTransactions.setLayoutManager(
                 new LinearLayoutManager(this)
@@ -81,9 +87,9 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
-        // -----------------------------------------
-        // Database
-        // -----------------------------------------
+        // =================================================
+        // DATABASE
+        // =================================================
 
         AppDatabase database =
                 AppDatabase.getInstance(this);
@@ -92,113 +98,149 @@ public class MainActivity extends AppCompatActivity {
                 database.transactionDao();
 
 
-        // -----------------------------------------
-        // Add Transaction
-        // -----------------------------------------
+        // =================================================
+        // ADD TRANSACTION
+        // =================================================
 
         btnAddTransaction.setOnClickListener(view -> {
 
-            Intent intent = new Intent(
-                    MainActivity.this,
-                    AddTransactionActivity.class
-            );
+            Intent intent =
+                    new Intent(
+                            MainActivity.this,
+                            AddTransactionActivity.class
+                    );
 
             startActivity(intent);
         });
 
 
-        // -----------------------------------------
-        // Load Dashboard
-        // -----------------------------------------
+        // =================================================
+        // ANALYTICS
+        // =================================================
+
+        btnAnalytics.setOnClickListener(view -> {
+
+            Intent intent =
+                    new Intent(
+                            MainActivity.this,
+                            AnalyticsActivity.class
+                    );
+
+            startActivity(intent);
+        });
+
+
+        // =================================================
+        // SETTINGS
+        // =================================================
+
+        btnSettings.setOnClickListener(view -> {
+
+            Intent intent =
+                    new Intent(
+                            MainActivity.this,
+                            SettingsActivity.class
+                    );
+
+            startActivity(intent);
+        });
+
+
+        // =================================================
+        // LOAD DASHBOARD
+        // =================================================
 
         loadDashboard();
     }
 
 
-    // =========================================
+    // =====================================================
     // ON RESUME
-    // =========================================
+    // =====================================================
 
     @Override
     protected void onResume() {
+
         super.onResume();
 
         if (transactionDao != null) {
+
             loadDashboard();
         }
     }
 
 
-    // =========================================
+    // =====================================================
     // LOAD DASHBOARD
-    // =========================================
+    // =====================================================
 
     private void loadDashboard() {
 
         executorService.execute(() -> {
 
-            // -----------------------------------------
-            // Total Income
-            // -----------------------------------------
+            // =================================================
+            // INCOME
+            // =================================================
 
             Double income =
                     transactionDao.getTotalIncome();
 
 
-            // -----------------------------------------
-            // Total Expense
-            // -----------------------------------------
+            // =================================================
+            // EXPENSE
+            // =================================================
 
             Double expense =
                     transactionDao.getTotalExpense();
 
 
-            // -----------------------------------------
-            // Prevent null
-            // -----------------------------------------
+            // =================================================
+            // NULL SAFETY
+            // =================================================
 
             if (income == null) {
+
                 income = 0.0;
             }
 
             if (expense == null) {
+
                 expense = 0.0;
             }
 
 
-            // -----------------------------------------
-            // Calculate Balance
-            // -----------------------------------------
+            // =================================================
+            // BALANCE
+            // =================================================
 
             double balance =
                     income - expense;
 
 
-            // -----------------------------------------
-            // Get Transactions
-            // -----------------------------------------
+            // =================================================
+            // TRANSACTIONS
+            // =================================================
 
             List<Transaction> transactions =
                     transactionDao.getAllTransactions();
 
 
-            // -----------------------------------------
-            // Final values for UI thread
-            // -----------------------------------------
+            // =================================================
+            // FINAL VALUES
+            // =================================================
 
             double finalIncome = income;
+
             double finalExpense = expense;
+
             double finalBalance = balance;
 
 
-            // -----------------------------------------
-            // Update UI
-            // -----------------------------------------
+            // =================================================
+            // UPDATE UI
+            // =================================================
 
             runOnUiThread(() -> {
-
-
-                // Income
 
                 tvIncome.setText(
                         String.format(
@@ -209,8 +251,6 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-                // Expense
-
                 tvExpense.setText(
                         String.format(
                                 Locale.getDefault(),
@@ -219,8 +259,6 @@ public class MainActivity extends AppCompatActivity {
                         )
                 );
 
-
-                // Balance
 
                 tvBalance.setText(
                         String.format(
@@ -231,9 +269,9 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-                // -----------------------------------------
-                // RecyclerView Adapter
-                // -----------------------------------------
+                // =================================================
+                // TRANSACTION ADAPTER
+                // =================================================
 
                 transactionAdapter =
                         new TransactionAdapter(
@@ -250,25 +288,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    // =========================================
+    // =====================================================
     // DELETE TRANSACTION
-    // =========================================
+    // =====================================================
 
     private void deleteTransaction(
             Transaction transaction) {
 
         executorService.execute(() -> {
 
-            // -----------------------------------------
-            // Delete from Room Database
-            // -----------------------------------------
+            // Delete from Room
 
-            transactionDao.delete(transaction);
+            transactionDao.delete(
+                    transaction
+            );
 
 
-            // -----------------------------------------
-            // Refresh Dashboard
-            // -----------------------------------------
+            // Refresh dashboard
 
             runOnUiThread(() -> {
 
@@ -285,12 +321,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    // =========================================
+    // =====================================================
     // CLEANUP
-    // =========================================
+    // =====================================================
 
     @Override
     protected void onDestroy() {
+
         super.onDestroy();
 
         executorService.shutdown();

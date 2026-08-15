@@ -4,12 +4,16 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Spinner;
@@ -24,6 +28,7 @@ import androidx.core.content.FileProvider;
 import com.example.expensetracker.database.AppDatabase;
 import com.example.expensetracker.database.Transaction;
 import com.example.expensetracker.database.TransactionDao;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
@@ -43,6 +48,10 @@ import java.util.regex.Pattern;
 
 public class AddTransactionActivity extends AppCompatActivity {
 
+    // =========================================
+    // VIEWS
+    // =========================================
+
     private TextInputEditText etAmount;
     private TextInputEditText etDescription;
 
@@ -52,26 +61,39 @@ public class AddTransactionActivity extends AppCompatActivity {
     private RadioButton radioExpense;
     private RadioButton radioIncome;
 
-    private Button btnSaveTransaction;
-    private Button btnScanReceipt;
+    private MaterialButton btnSaveTransaction;
+    private MaterialButton btnScanReceipt;
+
+
+    // =========================================
+    // DATABASE
+    // =========================================
 
     private TransactionDao transactionDao;
 
     private final ExecutorService executorService =
             Executors.newSingleThreadExecutor();
 
+
     // =========================================
     // EDIT MODE
     // =========================================
 
     private int transactionId = -1;
+
     private Transaction existingTransaction;
 
+
     // =========================================
-    // FULL RESOLUTION CAMERA
+    // CAMERA
     // =========================================
 
     private Uri photoUri;
+
+
+    // =========================================
+    // CAMERA RESULT
+    // =========================================
 
     private final ActivityResultLauncher<Uri> cameraLauncher =
             registerForActivityResult(
@@ -79,16 +101,19 @@ public class AddTransactionActivity extends AppCompatActivity {
                     success -> {
 
                         if (success && photoUri != null) {
-                            runOCRFromUri(photoUri);
+
+                            processCapturedImage();
+
                         } else {
+
                             Toast.makeText(
                                     this,
                                     "Photo capture cancelled",
                                     Toast.LENGTH_SHORT
                             ).show();
                         }
-                    }
-            );
+                    });
+
 
     // =========================================
     // CAMERA PERMISSION
@@ -101,8 +126,11 @@ public class AddTransactionActivity extends AppCompatActivity {
                     granted -> {
 
                         if (granted) {
+
                             openCamera();
+
                         } else {
+
                             Toast.makeText(
                                     this,
                                     "Camera permission required",
@@ -110,6 +138,11 @@ public class AddTransactionActivity extends AppCompatActivity {
                             ).show();
                         }
                     });
+
+
+    // =========================================
+    // ON CREATE
+    // =========================================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +152,7 @@ public class AddTransactionActivity extends AppCompatActivity {
         setContentView(
                 R.layout.activity_add_transaction
         );
+
 
         // =========================================
         // FIND VIEWS
@@ -148,6 +182,7 @@ public class AddTransactionActivity extends AppCompatActivity {
         btnScanReceipt =
                 findViewById(R.id.btnScanReceipt);
 
+
         // =========================================
         // DATABASE
         // =========================================
@@ -158,11 +193,13 @@ public class AddTransactionActivity extends AppCompatActivity {
         transactionDao =
                 database.transactionDao();
 
+
         // =========================================
-        // CATEGORY
+        // CATEGORY SPINNER
         // =========================================
 
         String[] categories = {
+
                 "Food",
                 "Travel",
                 "Shopping",
@@ -174,6 +211,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                 "Other"
         };
 
+
         ArrayAdapter<String> adapter =
                 new ArrayAdapter<>(
                         this,
@@ -181,14 +219,17 @@ public class AddTransactionActivity extends AppCompatActivity {
                         categories
                 );
 
+
         adapter.setDropDownViewResource(
                 android.R.layout.simple_spinner_dropdown_item
         );
 
+
         spinnerCategory.setAdapter(adapter);
 
+
         // =========================================
-        // EDIT MODE
+        // CHECK EDIT MODE
         // =========================================
 
         transactionId =
@@ -196,6 +237,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                         "transaction_id",
                         -1
                 );
+
 
         if (transactionId != -1) {
 
@@ -210,27 +252,35 @@ public class AddTransactionActivity extends AppCompatActivity {
             radioExpense.setChecked(true);
         }
 
+
         // =========================================
         // SCAN RECEIPT
         // =========================================
 
-        btnScanReceipt.setOnClickListener(view -> {
-            checkCameraPermission();
-        });
+        btnScanReceipt.setOnClickListener(
+                view -> checkCameraPermission()
+        );
+
 
         // =========================================
         // SAVE / UPDATE
         // =========================================
 
-        btnSaveTransaction.setOnClickListener(view -> {
+        btnSaveTransaction.setOnClickListener(
+                view -> {
 
-            if (transactionId != -1) {
-                updateTransaction();
-            } else {
-                saveTransaction();
-            }
-        });
+                    if (transactionId != -1) {
+
+                        updateTransaction();
+
+                    } else {
+
+                        saveTransaction();
+                    }
+                }
+        );
     }
+
 
     // =====================================================
     // CAMERA PERMISSION
@@ -253,35 +303,9 @@ public class AddTransactionActivity extends AppCompatActivity {
         }
     }
 
-    // =====================================================
-    // CREATE FULL RESOLUTION IMAGE
-    // =====================================================
-
-    private File createImageFile() throws IOException {
-
-        String timeStamp =
-                new SimpleDateFormat(
-                        "yyyyMMdd_HHmmss",
-                        Locale.getDefault()
-                ).format(new Date());
-
-        String imageFileName =
-                "RECEIPT_" + timeStamp;
-
-        File storageDir =
-                getExternalFilesDir(
-                        Environment.DIRECTORY_PICTURES
-                );
-
-        return File.createTempFile(
-                imageFileName,
-                ".jpg",
-                storageDir
-        );
-    }
 
     // =====================================================
-    // OPEN FULL RESOLUTION CAMERA
+    // OPEN FULL-RESOLUTION CAMERA
     // =====================================================
 
     private void openCamera() {
@@ -294,9 +318,11 @@ public class AddTransactionActivity extends AppCompatActivity {
             photoUri =
                     FileProvider.getUriForFile(
                             this,
-                            getPackageName() + ".fileprovider",
+                            getPackageName()
+                                    + ".fileprovider",
                             photoFile
                     );
+
 
             cameraLauncher.launch(photoUri);
 
@@ -310,11 +336,51 @@ public class AddTransactionActivity extends AppCompatActivity {
         }
     }
 
+
     // =====================================================
-    // OCR FROM FULL RESOLUTION IMAGE
+    // CREATE IMAGE FILE
     // =====================================================
 
-    private void runOCRFromUri(Uri uri) {
+    private File createImageFile()
+            throws IOException {
+
+        String timeStamp =
+                new SimpleDateFormat(
+                        "yyyyMMdd_HHmmss",
+                        Locale.getDefault()
+                ).format(new Date());
+
+
+        String imageFileName =
+                "RECEIPT_"
+                        + timeStamp
+                        + "_";
+
+
+        File storageDir =
+                getExternalFilesDir(
+                        Environment.DIRECTORY_PICTURES
+                );
+
+
+        return File.createTempFile(
+                imageFileName,
+                ".jpg",
+                storageDir
+        );
+    }
+
+
+    // =====================================================
+    // PROCESS CAPTURED IMAGE
+    // =====================================================
+
+    private void processCapturedImage() {
+
+        if (photoUri == null) {
+            return;
+        }
+
 
         Toast.makeText(
                 this,
@@ -322,47 +388,147 @@ public class AddTransactionActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT
         ).show();
 
-        try {
 
-            InputImage image =
-                    InputImage.fromFilePath(
-                            this,
-                            uri
+        executorService.execute(() -> {
+
+            try {
+
+                Bitmap bitmap =
+                        BitmapFactory.decodeStream(
+                                getContentResolver()
+                                        .openInputStream(photoUri)
+                        );
+
+
+                if (bitmap == null) {
+
+                    runOnUiThread(() ->
+                            Toast.makeText(
+                                    this,
+                                    "Could not read image",
+                                    Toast.LENGTH_SHORT
+                            ).show()
                     );
 
-            TextRecognizer recognizer =
-                    TextRecognition.getClient(
-                            TextRecognizerOptions.DEFAULT_OPTIONS
-                    );
+                    return;
+                }
 
-            recognizer.process(image)
-                    .addOnSuccessListener(result -> {
 
-                        processOCRText(result);
+                // Improve image for OCR
+                Bitmap processedBitmap =
+                        enhanceForOCR(bitmap);
 
-                        recognizer.close();
 
-                    })
-                    .addOnFailureListener(error -> {
+                runOCR(processedBitmap);
 
-                        recognizer.close();
 
+            } catch (Exception e) {
+
+                runOnUiThread(() ->
                         Toast.makeText(
                                 this,
-                                "Could not read receipt",
+                                "Could not process image",
                                 Toast.LENGTH_SHORT
-                        ).show();
-                    });
-
-        } catch (IOException e) {
-
-            Toast.makeText(
-                    this,
-                    "Could not load receipt image",
-                    Toast.LENGTH_SHORT
-            ).show();
-        }
+                        ).show()
+                );
+            }
+        });
     }
+
+
+    // =====================================================
+    // IMAGE ENHANCEMENT
+    // =====================================================
+
+    private Bitmap enhanceForOCR(Bitmap original) {
+
+        Bitmap result =
+                Bitmap.createBitmap(
+                        original.getWidth(),
+                        original.getHeight(),
+                        Bitmap.Config.ARGB_8888
+                );
+
+
+        Canvas canvas =
+                new Canvas(result);
+
+
+        Paint paint =
+                new Paint();
+
+
+        ColorMatrix colorMatrix =
+                new ColorMatrix();
+
+
+        // Convert to grayscale
+        colorMatrix.setSaturation(0);
+
+
+        paint.setColorFilter(
+                new ColorMatrixColorFilter(
+                        colorMatrix
+                )
+        );
+
+
+        canvas.drawBitmap(
+                original,
+                0,
+                0,
+                paint
+        );
+
+
+        return result;
+    }
+
+
+    // =====================================================
+    // OCR
+    // =====================================================
+
+    private void runOCR(Bitmap bitmap) {
+
+        InputImage image =
+                InputImage.fromBitmap(
+                        bitmap,
+                        0
+                );
+
+
+        TextRecognizer recognizer =
+                TextRecognition.getClient(
+                        TextRecognizerOptions.DEFAULT_OPTIONS
+                );
+
+
+        recognizer.process(image)
+
+                .addOnSuccessListener(
+                        result -> {
+
+                            processOCRText(result);
+
+                            recognizer.close();
+                        }
+                )
+
+                .addOnFailureListener(
+                        error -> {
+
+                            Toast.makeText(
+                                    this,
+                                    "Could not read receipt",
+                                    Toast.LENGTH_SHORT
+                            ).show();
+
+                            recognizer.close();
+                        }
+                );
+    }
+
 
     // =====================================================
     // PROCESS OCR TEXT
@@ -372,6 +538,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         String text =
                 result.getText();
+
 
         if (text == null ||
                 text.trim().isEmpty()) {
@@ -385,12 +552,6 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
-        // DEBUG
-        Toast.makeText(
-                this,
-                "OCR:\n" + text,
-                Toast.LENGTH_LONG
-        ).show();
 
         // =========================================
         // AMOUNT
@@ -398,6 +559,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         Double detectedAmount =
                 extractAmount(text);
+
 
         if (detectedAmount != null) {
 
@@ -409,16 +571,13 @@ public class AddTransactionActivity extends AppCompatActivity {
                     )
             );
 
+
             Toast.makeText(
                     this,
                     "Amount detected: ₹"
-                            + String.format(
-                            Locale.getDefault(),
-                            "%.2f",
-                            detectedAmount
-                    ),
+                            + detectedAmount,
                     Toast.LENGTH_SHORT
-            ).show();
+            );
 
         } else {
 
@@ -429,12 +588,14 @@ public class AddTransactionActivity extends AppCompatActivity {
             ).show();
         }
 
+
         // =========================================
         // DESCRIPTION
         // =========================================
 
         String description =
                 extractDescription(text);
+
 
         if (description != null &&
                 !description.isEmpty()) {
@@ -443,78 +604,103 @@ public class AddTransactionActivity extends AppCompatActivity {
                     description
             );
         }
+
+
+        // =========================================
+        // CATEGORY
+        // =========================================
+
+        String category =
+                detectCategory(text);
+
+
+        selectCategory(category);
+
+
+        // =========================================
+        // TYPE
+        // =========================================
+
+        String type =
+                detectTransactionType(text);
+
+
+        if ("Income".equals(type)) {
+
+            radioIncome.setChecked(true);
+
+        } else {
+
+            radioExpense.setChecked(true);
+        }
     }
+
 
     // =====================================================
     // EXTRACT AMOUNT
     // =====================================================
-
     private Double extractAmount(String text) {
 
-        if (text == null ||
-                text.trim().isEmpty()) {
-
+        if (text == null || text.trim().isEmpty()) {
             return null;
         }
 
-        String cleanText =
-                text.replace(",", "")
-                        .replace("₹", " Rs ")
-                        .replace("—", "-")
-                        .replace("–", "-");
+        String cleanText = text
+                .replace("₹", " Rs ")
+                .replace("रु", " Rs ")
+                .replace("Rs.", " Rs ")
+                .replace("rs.", " Rs ")
+                .replace("RS", " Rs ")
+                .replace("—", "-")
+                .replace("–", "-");
 
         // =========================================
-        // 1. TOTAL / GRAND TOTAL
+        // 1. AMOUNT LABEL
+        // Examples:
+        // Amount: ₹8000
+        // Amount ₹8000
+        // Amount: 8000
         // =========================================
 
-        Pattern totalPattern =
-                Pattern.compile(
-                        "(?i)(grand\\s*total|"
-                                + "total\\s*amount|"
-                                + "net\\s*amount|"
-                                + "amount\\s*payable|"
-                                + "total|"
-                                + "amount)"
-                                + "\\s*[:=\\-]?\\s*"
-                                + "(?:rs\\.?|inr)?\\s*"
-                                + "([0-9]+(?:\\.[0-9]{1,2})?)"
-                );
+        Pattern amountLabelPattern = Pattern.compile(
+                "(?i)(amount|total\\s*amount|grand\\s*total|total)"
+                        + "\\s*[:=\\-]?\\s*"
+                        + "(?:rs\\s*)?"
+                        + "₹?\\s*"
+                        + "([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
+        );
 
-        Matcher totalMatcher =
-                totalPattern.matcher(cleanText);
+        Matcher amountLabelMatcher =
+                amountLabelPattern.matcher(cleanText);
 
-        Double totalAmount = null;
-
-        while (totalMatcher.find()) {
+        while (amountLabelMatcher.find()) {
 
             try {
 
+                String number =
+                        amountLabelMatcher.group(2)
+                                .replace(",", "");
+
                 double value =
-                        Double.parseDouble(
-                                totalMatcher.group(2)
-                        );
+                        Double.parseDouble(number);
 
                 if (value > 0) {
-                    totalAmount = value;
+                    return value;
                 }
 
             } catch (Exception ignored) {
             }
         }
 
-        if (totalAmount != null) {
-            return totalAmount;
-        }
 
         // =========================================
-        // 2. CURRENCY
+        // 2. ₹ / Rs / INR FOLLOWED BY NUMBER
         // =========================================
 
-        Pattern currencyPattern =
-                Pattern.compile(
-                        "(?i)(?:rs\\.?|inr)\\s*"
-                                + "([0-9]+(?:\\.[0-9]{1,2})?)"
-                );
+        Pattern currencyPattern = Pattern.compile(
+                "(?i)(?:₹|rs\\.?|inr)\\s*"
+                        + "([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
+        );
 
         Matcher currencyMatcher =
                 currencyPattern.matcher(cleanText);
@@ -525,10 +711,12 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             try {
 
+                String number =
+                        currencyMatcher.group(1)
+                                .replace(",", "");
+
                 double value =
-                        Double.parseDouble(
-                                currencyMatcher.group(1)
-                        );
+                        Double.parseDouble(number);
 
                 if (value > 0 &&
                         (largestAmount == null ||
@@ -545,50 +733,22 @@ public class AddTransactionActivity extends AppCompatActivity {
             return largestAmount;
         }
 
-        // =========================================
-        // 3. DECIMAL NUMBERS
-        // =========================================
-
-        Pattern decimalPattern =
-                Pattern.compile(
-                        "\\b([0-9]+\\.[0-9]{1,2})\\b"
-                );
-
-        Matcher decimalMatcher =
-                decimalPattern.matcher(cleanText);
-
-        while (decimalMatcher.find()) {
-
-            try {
-
-                double value =
-                        Double.parseDouble(
-                                decimalMatcher.group(1)
-                        );
-
-                if (value > 0 &&
-                        (largestAmount == null ||
-                                value > largestAmount)) {
-
-                    largestAmount = value;
-                }
-
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (largestAmount != null) {
-            return largestAmount;
-        }
 
         // =========================================
-        // 4. INTEGER FALLBACK
+        // 3. INTEGER / DECIMAL NUMBERS
+        // IMPORTANT FOR HANDWRITTEN RECEIPTS
+        //
+        // OCR might return:
+        // Amount
+        // 8000
+        //
+        // instead of:
+        // Amount ₹8000
         // =========================================
 
-        Pattern numberPattern =
-                Pattern.compile(
-                        "\\b([0-9]{2,7})\\b"
-                );
+        Pattern numberPattern = Pattern.compile(
+                "\\b([0-9]{2,}(?:,[0-9]{3})*(?:\\.[0-9]{1,2})?)\\b"
+        );
 
         Matcher numberMatcher =
                 numberPattern.matcher(cleanText);
@@ -597,18 +757,15 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             try {
 
+                String number =
+                        numberMatcher.group(1)
+                                .replace(",", "");
+
                 double value =
-                        Double.parseDouble(
-                                numberMatcher.group(1)
-                        );
+                        Double.parseDouble(number);
 
-                // Ignore years
-                if (value >= 1900 &&
-                        value <= 2100) {
-                    continue;
-                }
-
-                if (value > 0 &&
+                // Ignore very small numbers such as dates
+                if (value >= 10 &&
                         (largestAmount == null ||
                                 value > largestAmount)) {
 
@@ -619,37 +776,243 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
         }
 
+
         return largestAmount;
     }
 
+
     // =====================================================
-    // EXTRACT DESCRIPTION
+    // DESCRIPTION
     // =====================================================
 
     private String extractDescription(String text) {
 
+        if (text == null ||
+                text.trim().isEmpty()) {
+
+            return null;
+        }
+
+
         String[] lines =
                 text.split("\\r?\\n");
+
+
+        // =========================================
+        // DESCRIPTION LABEL
+        // =========================================
 
         for (String line : lines) {
 
             String clean =
                     line.trim();
 
-            if (clean.length() >= 3 &&
-                    clean.length() <= 40 &&
-                    !clean.matches(".*\\d{3,}.*") &&
-                    !clean.matches("(?i).*total.*") &&
-                    !clean.matches("(?i).*amount.*") &&
-                    !clean.matches("(?i).*subtotal.*") &&
-                    !clean.matches("(?i).*tax.*")) {
+
+            if (clean.toLowerCase(
+                    Locale.getDefault()
+            ).startsWith("description")) {
+
+
+                String description =
+                        clean.replaceFirst(
+                                "(?i)description"
+                                        + "\\s*[:=\\-]?\\s*",
+                                ""
+                        ).trim();
+
+
+                if (!description.isEmpty()) {
+
+                    return description;
+                }
+            }
+        }
+
+
+        // =========================================
+        // NORMAL TEXT FALLBACK
+        // =========================================
+
+        for (String line : lines) {
+
+            String clean =
+                    line.trim();
+
+
+            String lower =
+                    clean.toLowerCase(
+                            Locale.getDefault()
+                    );
+
+
+            if (clean.length() >= 3
+                    && clean.length() <= 50
+                    && !lower.contains("amount")
+                    && !lower.contains("category")
+                    && !lower.contains("type")
+                    && !lower.contains("total")
+                    && !clean.matches(
+                    ".*\\d{3,}.*"
+            )) {
 
                 return clean;
             }
         }
 
+
         return null;
     }
+
+
+    // =====================================================
+    // DETECT CATEGORY
+    // =====================================================
+
+    private String detectCategory(String text) {
+
+        String lower =
+                text.toLowerCase(
+                        Locale.getDefault()
+                );
+
+
+        if (lower.contains("food")
+                || lower.contains("restaurant")
+                || lower.contains("lunch")
+                || lower.contains("dinner")
+                || lower.contains("breakfast")) {
+
+            return "Food";
+        }
+
+
+        if (lower.contains("travel")
+                || lower.contains("taxi")
+                || lower.contains("uber")
+                || lower.contains("bus")
+                || lower.contains("train")
+                || lower.contains("flight")) {
+
+            return "Travel";
+        }
+
+
+        if (lower.contains("shopping")
+                || lower.contains("shirt")
+                || lower.contains("clothes")
+                || lower.contains("amazon")) {
+
+            return "Shopping";
+        }
+
+
+        if (lower.contains("bill")
+                || lower.contains("electricity")
+                || lower.contains("electric")
+                || lower.contains("recharge")
+                || lower.contains("internet")) {
+
+            return "Bills";
+        }
+
+
+        if (lower.contains("movie")
+                || lower.contains("game")
+                || lower.contains("entertainment")) {
+
+            return "Entertainment";
+        }
+
+
+        if (lower.contains("doctor")
+                || lower.contains("medicine")
+                || lower.contains("hospital")
+                || lower.contains("health")) {
+
+            return "Health";
+        }
+
+
+        if (lower.contains("college")
+                || lower.contains("course")
+                || lower.contains("education")
+                || lower.contains("book")) {
+
+            return "Education";
+        }
+
+
+        if (lower.contains("salary")
+                || lower.contains("income")
+                || lower.contains("credited")) {
+
+            return "Salary";
+        }
+
+
+        return "Other";
+    }
+
+
+    // =====================================================
+    // SELECT CATEGORY
+    // =====================================================
+
+    private void selectCategory(String category) {
+
+        if (category == null) {
+            return;
+        }
+
+
+        ArrayAdapter<?> adapter =
+                (ArrayAdapter<?>)
+                        spinnerCategory.getAdapter();
+
+
+        for (int i = 0;
+             i < adapter.getCount();
+             i++) {
+
+
+            if (category.equalsIgnoreCase(
+                    adapter.getItem(i).toString()
+            )) {
+
+                spinnerCategory.setSelection(i);
+
+                return;
+            }
+        }
+    }
+
+
+    // =====================================================
+    // DETECT TRANSACTION TYPE
+    // =====================================================
+
+    private String detectTransactionType(
+            String text
+    ) {
+
+        String lower =
+                text.toLowerCase(
+                        Locale.getDefault()
+                );
+
+
+        if (lower.contains("income")
+                || lower.contains("salary")
+                || lower.contains("credited")
+                || lower.contains("received")) {
+
+            return "Income";
+        }
+
+
+        return "Expense";
+    }
+
 
     // =====================================================
     // LOAD TRANSACTION
@@ -663,6 +1026,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                     transactionDao.getTransactionById(
                             transactionId
                     );
+
 
             if (existingTransaction == null) {
 
@@ -680,17 +1044,22 @@ public class AddTransactionActivity extends AppCompatActivity {
                 return;
             }
 
+
             runOnUiThread(() -> {
 
                 etAmount.setText(
                         String.valueOf(
-                                existingTransaction.getAmount()
+                                existingTransaction
+                                        .getAmount()
                         )
                 );
 
+
                 etDescription.setText(
-                        existingTransaction.getDescription()
+                        existingTransaction
+                                .getDescription()
                 );
+
 
                 if ("Income".equalsIgnoreCase(
                         existingTransaction.getType()
@@ -703,28 +1072,18 @@ public class AddTransactionActivity extends AppCompatActivity {
                     radioExpense.setChecked(true);
                 }
 
-                String category =
-                        existingTransaction.getCategory();
 
-                ArrayAdapter<String> adapter =
-                        (ArrayAdapter<String>)
-                                spinnerCategory.getAdapter();
-
-                int position =
-                        adapter.getPosition(category);
-
-                if (position >= 0) {
-
-                    spinnerCategory.setSelection(
-                            position
-                    );
-                }
+                selectCategory(
+                        existingTransaction
+                                .getCategory()
+                );
             });
         });
     }
 
+
     // =====================================================
-    // SAVE
+    // SAVE TRANSACTION
     // =====================================================
 
     private void saveTransaction() {
@@ -734,10 +1093,12 @@ public class AddTransactionActivity extends AppCompatActivity {
                         .toString()
                         .trim();
 
+
         String description =
                 etDescription.getText()
                         .toString()
                         .trim();
+
 
         if (amountText.isEmpty()) {
 
@@ -750,6 +1111,7 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         if (description.isEmpty()) {
 
             etDescription.setError(
@@ -761,7 +1123,9 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         double amount;
+
 
         try {
 
@@ -779,6 +1143,7 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         if (amount <= 0) {
 
             etAmount.setError(
@@ -788,21 +1153,25 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         String category =
                 spinnerCategory
                         .getSelectedItem()
                         .toString();
+
 
         String type =
                 radioIncome.isChecked()
                         ? "Income"
                         : "Expense";
 
+
         String date =
                 new SimpleDateFormat(
                         "dd-MM-yyyy",
                         Locale.getDefault()
                 ).format(new Date());
+
 
         Transaction transaction =
                 new Transaction(
@@ -813,11 +1182,13 @@ public class AddTransactionActivity extends AppCompatActivity {
                         date
                 );
 
+
         executorService.execute(() -> {
 
             transactionDao.insert(
                     transaction
             );
+
 
             runOnUiThread(() -> {
 
@@ -827,13 +1198,15 @@ public class AddTransactionActivity extends AppCompatActivity {
                         Toast.LENGTH_SHORT
                 ).show();
 
+
                 finish();
             });
         });
     }
 
+
     // =====================================================
-    // UPDATE
+    // UPDATE TRANSACTION
     // =====================================================
 
     private void updateTransaction() {
@@ -849,15 +1222,18 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         String amountText =
                 etAmount.getText()
                         .toString()
                         .trim();
 
+
         String description =
                 etDescription.getText()
                         .toString()
                         .trim();
+
 
         if (amountText.isEmpty()) {
 
@@ -868,6 +1244,7 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         if (description.isEmpty()) {
 
             etDescription.setError(
@@ -877,7 +1254,9 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         double amount;
+
 
         try {
 
@@ -895,6 +1274,7 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         if (amount <= 0) {
 
             etAmount.setError(
@@ -904,15 +1284,18 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
+
         String category =
                 spinnerCategory
                         .getSelectedItem()
                         .toString();
 
+
         String type =
                 radioIncome.isChecked()
                         ? "Income"
                         : "Expense";
+
 
         Transaction updatedTransaction =
                 new Transaction(
@@ -923,15 +1306,19 @@ public class AddTransactionActivity extends AppCompatActivity {
                         existingTransaction.getDate()
                 );
 
+
+        // Preserve ID
         updatedTransaction.setId(
                 existingTransaction.getId()
         );
+
 
         executorService.execute(() -> {
 
             transactionDao.update(
                     updatedTransaction
             );
+
 
             runOnUiThread(() -> {
 
@@ -941,10 +1328,12 @@ public class AddTransactionActivity extends AppCompatActivity {
                         Toast.LENGTH_SHORT
                 ).show();
 
+
                 finish();
             });
         });
     }
+
 
     // =====================================================
     // CLEANUP
