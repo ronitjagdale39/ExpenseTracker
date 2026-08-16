@@ -1,7 +1,9 @@
 package com.example.expensetracker;
 
-import android.content.res.ColorStateList;
+import android.app.AlertDialog;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -16,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.expensetracker.database.AppDatabase;
 import com.example.expensetracker.database.Transaction;
 import com.example.expensetracker.database.TransactionDao;
+import com.google.android.material.button.MaterialButton;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.charts.PieChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -27,7 +30,6 @@ import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.ValueFormatter;
-import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -46,11 +48,9 @@ import java.util.concurrent.Executors;
 
 public class AnalyticsActivity extends AppCompatActivity {
 
-    // ============================================================
+    // =========================================================
     // UI
-    // ============================================================
-
-    private TextView tvTrendTitle;
+    // =========================================================
 
     private TextView tvTotalBalance;
     private TextView tvIncome;
@@ -72,7 +72,13 @@ public class AnalyticsActivity extends AppCompatActivity {
     private TextView tvNoCategoryData;
     private TextView tvNoTrendData;
 
+    private TextView tvTrendTitle;
+
+    private TextView tvHeatmapTitle;
+    private TextView tvHeatmapSummary;
+
     private LinearLayout categoryLegendContainer;
+    private LinearLayout heatmapContainer;
 
     private PieChart pieChart;
     private LineChart lineChart;
@@ -83,25 +89,26 @@ public class AnalyticsActivity extends AppCompatActivity {
     private MaterialButton btnIncomeTrend;
     private MaterialButton btnBack;
 
-    // ============================================================
+    // =========================================================
     // DATABASE
-    // ============================================================
+    // =========================================================
 
     private TransactionDao transactionDao;
 
-    private final ExecutorService executorService =
+    private final ExecutorService executor =
             Executors.newSingleThreadExecutor();
-
-    // ============================================================
-    // DATA
-    // ============================================================
 
     private List<Transaction> allTransactions =
             new ArrayList<>();
 
+    // =========================================================
+    // SETTINGS
+    // =========================================================
+
     private boolean showIncomeTrend = false;
 
-    private static final String DATE_FORMAT = "dd-MM-yyyy";
+    private static final String DATE_FORMAT =
+            "dd-MM-yyyy";
 
     private final SimpleDateFormat dateFormat =
             new SimpleDateFormat(
@@ -109,9 +116,9 @@ public class AnalyticsActivity extends AppCompatActivity {
                     Locale.getDefault()
             );
 
-    // ============================================================
+    // =========================================================
     // COLORS
-    // ============================================================
+    // =========================================================
 
     private static final int PURPLE =
             Color.rgb(126, 87, 194);
@@ -119,16 +126,27 @@ public class AnalyticsActivity extends AppCompatActivity {
     private static final int GREEN =
             Color.rgb(46, 125, 50);
 
-    private static final int RED =
-            Color.rgb(211, 72, 72);
+    private static final int HEAT_0 =
+            Color.rgb(242, 239, 250);
 
-    // ============================================================
-    // ON CREATE
-    // ============================================================
+    private static final int HEAT_1 =
+            Color.rgb(222, 211, 241);
+
+    private static final int HEAT_2 =
+            Color.rgb(194, 172, 222);
+
+    private static final int HEAT_3 =
+            Color.rgb(159, 128, 199);
+
+    private static final int HEAT_4 =
+            Color.rgb(126, 87, 194);
+
+    // =========================================================
+    // CREATE
+    // =========================================================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
 
         setContentView(
@@ -142,69 +160,19 @@ public class AnalyticsActivity extends AppCompatActivity {
                         .getInstance(this)
                         .transactionDao();
 
-        setupPeriodSpinner();
-
+        setupSpinner();
         setupPieChart();
-
         setupLineChart();
-
-        btnBack.setOnClickListener(
-                v -> finish()
-        );
-
-        btnExpenseTrend.setOnClickListener(v -> {
-
-            showIncomeTrend = false;
-
-            updateTrendButtonState();
-
-            loadAnalytics();
-        });
-
-        btnIncomeTrend.setOnClickListener(v -> {
-
-            showIncomeTrend = true;
-
-            updateTrendButtonState();
-
-            loadAnalytics();
-        });
-
-        spinnerPeriod.setOnItemSelectedListener(
-                new AdapterView.OnItemSelectedListener() {
-
-                    @Override
-                    public void onItemSelected(
-                            AdapterView<?> parent,
-                            View view,
-                            int position,
-                            long id
-                    ) {
-
-                        loadAnalytics();
-                    }
-
-                    @Override
-                    public void onNothingSelected(
-                            AdapterView<?> parent
-                    ) {
-                    }
-                }
-        );
-
-        updateTrendButtonState();
+        setupButtons();
 
         loadTransactions();
     }
 
-    // ============================================================
+    // =========================================================
     // INITIALIZE VIEWS
-    // ============================================================
+    // =========================================================
 
     private void initializeViews() {
-
-        tvTrendTitle =
-                findViewById(R.id.tvTrendTitle);
 
         tvTotalBalance =
                 findViewById(R.id.tvTotalBalance);
@@ -251,44 +219,71 @@ public class AnalyticsActivity extends AppCompatActivity {
         tvNoTrendData =
                 findViewById(R.id.tvNoTrendData);
 
+        tvTrendTitle =
+                findViewById(R.id.tvTrendTitle);
+
         categoryLegendContainer =
                 findViewById(
                         R.id.categoryLegendContainer
                 );
 
         pieChart =
-                findViewById(R.id.pieChart);
+                findViewById(
+                        R.id.pieChart
+                );
 
         lineChart =
-                findViewById(R.id.lineChart);
+                findViewById(
+                        R.id.lineChart
+                );
 
         spinnerPeriod =
-                findViewById(R.id.spinnerPeriod);
+                findViewById(
+                        R.id.spinnerPeriod
+                );
 
         btnExpenseTrend =
-                findViewById(R.id.btnExpenseTrend);
+                findViewById(
+                        R.id.btnExpenseTrend
+                );
 
         btnIncomeTrend =
-                findViewById(R.id.btnIncomeTrend);
+                findViewById(
+                        R.id.btnIncomeTrend
+                );
 
         btnBack =
-                findViewById(R.id.btnBack);
+                findViewById(
+                        R.id.btnBack
+                );
+
+        // Heatmap
+        tvHeatmapTitle =
+                findViewById(
+                        R.id.tvHeatmapTitle
+                );
+
+        tvHeatmapSummary =
+                findViewById(
+                        R.id.tvHeatmapSummary
+                );
+
+        heatmapContainer =
+                findViewById(
+                        R.id.heatmapContainer
+                );
     }
 
-    // ============================================================
-    // PERIOD SPINNER
-    // ============================================================
+    // =========================================================
+    // SPINNER
+    // =========================================================
 
-    private void setupPeriodSpinner() {
+    private void setupSpinner() {
 
         String[] periods = {
-
                 "This Month",
-
                 "Last Month",
-
                 "Last 3 Months",
-
                 "This Year"
         };
 
@@ -303,14 +298,110 @@ public class AnalyticsActivity extends AppCompatActivity {
                 android.R.layout.simple_spinner_dropdown_item
         );
 
-        spinnerPeriod.setAdapter(
-                adapter
+        spinnerPeriod.setAdapter(adapter);
+
+        spinnerPeriod.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+
+                    @Override
+                    public void onItemSelected(
+                            AdapterView<?> parent,
+                            View view,
+                            int position,
+                            long id
+                    ) {
+                        loadAnalytics();
+                    }
+
+                    @Override
+                    public void onNothingSelected(
+                            AdapterView<?> parent
+                    ) {
+                    }
+                }
         );
     }
 
-    // ============================================================
-    // LOAD TRANSACTIONS
-    // ============================================================
+    // =========================================================
+    // BUTTONS
+    // =========================================================
+
+    private void setupButtons() {
+
+        btnBack.setOnClickListener(
+                v -> finish()
+        );
+
+        btnExpenseTrend.setOnClickListener(
+                v -> {
+                    showIncomeTrend = false;
+                    updateTrendButtons();
+                    loadAnalytics();
+                }
+        );
+
+        btnIncomeTrend.setOnClickListener(
+                v -> {
+                    showIncomeTrend = true;
+                    updateTrendButtons();
+                    loadAnalytics();
+                }
+        );
+
+        updateTrendButtons();
+    }
+
+    private void updateTrendButtons() {
+
+        if (showIncomeTrend) {
+
+            btnIncomeTrend.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            PURPLE
+                    )
+            );
+
+            btnIncomeTrend.setTextColor(
+                    Color.WHITE
+            );
+
+            btnExpenseTrend.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            Color.WHITE
+                    )
+            );
+
+            btnExpenseTrend.setTextColor(
+                    Color.DKGRAY
+            );
+
+        } else {
+
+            btnExpenseTrend.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            PURPLE
+                    )
+            );
+
+            btnExpenseTrend.setTextColor(
+                    Color.WHITE
+            );
+
+            btnIncomeTrend.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            Color.WHITE
+                    )
+            );
+
+            btnIncomeTrend.setTextColor(
+                    Color.DKGRAY
+            );
+        }
+    }
+
+    // =========================================================
+    // DATABASE
+    // =========================================================
 
     private void loadTransactions() {
 
@@ -320,28 +411,24 @@ public class AnalyticsActivity extends AppCompatActivity {
                         .getCurrentUser();
 
         if (user == null) {
-
             return;
         }
 
         String uid =
                 user.getUid();
 
-        executorService.execute(() -> {
+        executor.execute(() -> {
 
-            List<Transaction> transactions =
-                    transactionDao.getAllTransactions(
-                            uid
-                    );
+            List<Transaction> result =
+                    transactionDao
+                            .getAllTransactions(uid);
 
-            if (transactions == null) {
-
-                transactions =
+            if (result == null) {
+                result =
                         new ArrayList<>();
             }
 
-            allTransactions =
-                    transactions;
+            allTransactions = result;
 
             runOnUiThread(
                     this::loadAnalytics
@@ -349,37 +436,32 @@ public class AnalyticsActivity extends AppCompatActivity {
         });
     }
 
-    // ============================================================
-    // MAIN ANALYTICS
-    // ============================================================
+    // =========================================================
+    // ANALYTICS
+    // =========================================================
 
     private void loadAnalytics() {
 
         if (allTransactions == null) {
-
             return;
         }
 
-        Period currentPeriod =
+        Period current =
                 getSelectedPeriod();
 
-        Period previousPeriod =
-                getPreviousPeriod(
-                        currentPeriod
-                );
+        Period previous =
+                getPreviousPeriod(current);
 
         List<Transaction> currentTransactions =
                 filterTransactions(
-                        allTransactions,
-                        currentPeriod.start,
-                        currentPeriod.end
+                        current.start,
+                        current.end
                 );
 
         List<Transaction> previousTransactions =
                 filterTransactions(
-                        allTransactions,
-                        previousPeriod.start,
-                        previousPeriod.end
+                        previous.start,
+                        previous.end
                 );
 
         calculateOverview(
@@ -387,7 +469,7 @@ public class AnalyticsActivity extends AppCompatActivity {
                 previousTransactions
         );
 
-        calculateCategoryAnalytics(
+        calculateCategories(
                 currentTransactions
         );
 
@@ -399,11 +481,14 @@ public class AnalyticsActivity extends AppCompatActivity {
                 currentTransactions,
                 previousTransactions
         );
+
+        // NEW
+        buildHeatmap();
     }
 
-    // ============================================================
+    // =========================================================
     // OVERVIEW
-    // ============================================================
+    // =========================================================
 
     private void calculateOverview(
             List<Transaction> current,
@@ -411,40 +496,30 @@ public class AnalyticsActivity extends AppCompatActivity {
     ) {
 
         double income = 0;
-
         double expense = 0;
+
+        double previousIncome = 0;
+        double previousExpense = 0;
 
         for (Transaction transaction : current) {
 
             if (isIncome(transaction)) {
-
-                income +=
-                        transaction.getAmount();
+                income += transaction.getAmount();
             }
 
             if (isExpense(transaction)) {
-
-                expense +=
-                        transaction.getAmount();
+                expense += transaction.getAmount();
             }
         }
-
-        double previousIncome = 0;
-
-        double previousExpense = 0;
 
         for (Transaction transaction : previous) {
 
             if (isIncome(transaction)) {
-
-                previousIncome +=
-                        transaction.getAmount();
+                previousIncome += transaction.getAmount();
             }
 
             if (isExpense(transaction)) {
-
-                previousExpense +=
-                        transaction.getAmount();
+                previousExpense += transaction.getAmount();
             }
         }
 
@@ -453,25 +528,8 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         double savingsRate =
                 income > 0
-                        ? balance / income * 100
+                        ? (balance / income) * 100
                         : 0;
-
-        double incomeChange =
-                calculatePercentageChange(
-                        previousIncome,
-                        income
-                );
-
-        double expenseChange =
-                calculatePercentageChange(
-                        previousExpense,
-                        expense
-                );
-
-        double averageDaily =
-                calculateAverageDailyExpense(
-                        current
-                );
 
         tvTotalBalance.setText(
                 formatCurrency(balance)
@@ -499,29 +557,33 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         tvIncomeChange.setText(
                 createChangeText(
-                        incomeChange
+                        previousIncome,
+                        income
                 )
         );
 
         tvExpenseChange.setText(
                 createChangeText(
-                        expenseChange
+                        previousExpense,
+                        expense
                 )
         );
 
         tvAverageDaily.setText(
                 "Avg. daily expense: "
                         + formatCurrency(
-                        averageDaily
+                        calculateAverageDaily(
+                                current
+                        )
                 )
         );
     }
 
-    // ============================================================
+    // =========================================================
     // CATEGORY ANALYTICS
-    // ============================================================
+    // =========================================================
 
-    private void calculateCategoryAnalytics(
+    private void calculateCategories(
             List<Transaction> transactions
     ) {
 
@@ -530,11 +592,9 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         double totalExpense = 0;
 
-        for (Transaction transaction :
-                transactions) {
+        for (Transaction transaction : transactions) {
 
             if (!isExpense(transaction)) {
-
                 continue;
             }
 
@@ -544,15 +604,13 @@ public class AnalyticsActivity extends AppCompatActivity {
             if (category == null ||
                     category.trim().isEmpty()) {
 
-                category =
-                        "Other";
+                category = "Other";
             }
 
             double amount =
                     transaction.getAmount();
 
-            totalExpense +=
-                    amount;
+            totalExpense += amount;
 
             categoryMap.put(
                     category,
@@ -571,19 +629,18 @@ public class AnalyticsActivity extends AppCompatActivity {
                     "No data"
             );
 
+            categoryLegendContainer.removeAllViews();
+
             tvNoCategoryData.setVisibility(
                     View.VISIBLE
             );
-
-            categoryLegendContainer
-                    .removeAllViews();
 
             tvTopCategory.setText(
                     "No data"
             );
 
             tvTopCategoryAmount.setText(
-                    "Add some expenses"
+                    "Add expenses"
             );
 
             return;
@@ -593,14 +650,13 @@ public class AnalyticsActivity extends AppCompatActivity {
                 View.GONE
         );
 
-        List<Map.Entry<String, Double>>
-                sortedCategories =
+        List<Map.Entry<String, Double>> sorted =
                 new ArrayList<>(
                         categoryMap.entrySet()
                 );
 
         Collections.sort(
-                sortedCategories,
+                sorted,
                 (a, b) ->
                         Double.compare(
                                 b.getValue(),
@@ -609,34 +665,62 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
 
         String topCategory =
-                sortedCategories
-                        .get(0)
-                        .getKey();
+                sorted.get(0).getKey();
 
         double topAmount =
-                sortedCategories
-                        .get(0)
-                        .getValue();
+                sorted.get(0).getValue();
 
         ArrayList<PieEntry> entries =
                 new ArrayList<>();
 
-        for (Map.Entry<String, Double> entry :
-                sortedCategories) {
+        for (Map.Entry<String, Double> entry : sorted) {
 
             entries.add(
                     new PieEntry(
-                            entry.getValue()
-                                    .floatValue(),
+                            entry.getValue().floatValue(),
                             entry.getKey()
                     )
             );
         }
 
-        setupPieData(
-                entries,
-                totalExpense
+        PieDataSet dataSet =
+                new PieDataSet(
+                        entries,
+                        ""
+                );
+
+        dataSet.setSliceSpace(3f);
+        dataSet.setSelectionShift(5f);
+        dataSet.setValueTextSize(11f);
+        dataSet.setValueTextColor(Color.WHITE);
+
+        ArrayList<Integer> colors =
+                new ArrayList<>();
+
+        colors.add(Color.rgb(126, 87, 194));
+        colors.add(Color.rgb(66, 133, 244));
+        colors.add(Color.rgb(52, 168, 83));
+        colors.add(Color.rgb(251, 188, 4));
+        colors.add(Color.rgb(234, 67, 53));
+        colors.add(Color.rgb(156, 39, 176));
+        colors.add(Color.rgb(0, 150, 136));
+        colors.add(Color.rgb(255, 112, 67));
+
+        dataSet.setColors(colors);
+
+        pieChart.setData(
+                new PieData(dataSet)
         );
+
+        pieChart.setCenterText(
+                formatCompactCurrency(
+                        totalExpense
+                )
+                        + "\nTotal"
+        );
+
+        pieChart.animateY(600);
+        pieChart.invalidate();
 
         tvTopCategory.setText(
                 topCategory
@@ -648,176 +732,17 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
 
         buildCategoryLegend(
-                sortedCategories,
+                sorted,
                 totalExpense
         );
     }
 
-    // ============================================================
-    // PIE CHART SETUP
-    // ============================================================
-
-    private void setupPieChart() {
-
-        pieChart
-                .getDescription()
-                .setEnabled(false);
-
-        pieChart.setUsePercentValues(
-                false
-        );
-
-        pieChart.setDrawHoleEnabled(
-                true
-        );
-
-        pieChart.setHoleRadius(
-                58f
-        );
-
-        pieChart.setTransparentCircleRadius(
-                63f
-        );
-
-        pieChart.setDrawEntryLabels(
-                false
-        );
-
-        pieChart.getLegend()
-                .setEnabled(false);
-
-        pieChart.setRotationEnabled(
-                true
-        );
-
-        pieChart.setHighlightPerTapEnabled(
-                true
-        );
-    }
-
-    private void setupPieData(
-            ArrayList<PieEntry> entries,
-            double totalExpense
-    ) {
-
-        PieDataSet dataSet =
-                new PieDataSet(
-                        entries,
-                        ""
-                );
-
-        dataSet.setSliceSpace(
-                3f
-        );
-
-        dataSet.setSelectionShift(
-                5f
-        );
-
-        dataSet.setValueTextSize(
-                11f
-        );
-
-        dataSet.setValueTextColor(
-                Color.WHITE
-        );
-
-        ArrayList<Integer> colors =
-                new ArrayList<>();
-
-        colors.add(
-                Color.rgb(126, 87, 194)
-        );
-
-        colors.add(
-                Color.rgb(66, 133, 244)
-        );
-
-        colors.add(
-                Color.rgb(52, 168, 83)
-        );
-
-        colors.add(
-                Color.rgb(251, 188, 4)
-        );
-
-        colors.add(
-                Color.rgb(234, 67, 53)
-        );
-
-        colors.add(
-                Color.rgb(156, 39, 176)
-        );
-
-        colors.add(
-                Color.rgb(0, 150, 136)
-        );
-
-        colors.add(
-                Color.rgb(255, 112, 67)
-        );
-
-        dataSet.setColors(
-                colors
-        );
-
-        PieData pieData =
-                new PieData(dataSet);
-
-        pieChart.setData(
-                pieData
-        );
-
-        pieChart.setCenterText(
-                formatCompactCurrency(
-                        totalExpense
-                )
-                        + "\nTotal"
-        );
-
-        pieChart.animateY(
-                600
-        );
-
-        pieChart.invalidate();
-    }
-
-    // ============================================================
-    // LINE CHART SETUP
-    // ============================================================
-
-    private void setupLineChart() {
-
-        lineChart
-                .getDescription()
-                .setEnabled(false);
-
-        lineChart.setTouchEnabled(true);
-        lineChart.setDragEnabled(true);
-        lineChart.setScaleEnabled(true);
-        lineChart.setPinchZoom(true);
-        lineChart.setDrawGridBackground(false);
-
-        XAxis xAxis = lineChart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setDrawGridLines(false);
-
-        lineChart.getAxisRight().setEnabled(false);
-        lineChart.getLegend().setEnabled(false);
-    }
-
-    // ============================================================
-    // CATEGORY LEGEND
-    // ============================================================
-
     private void buildCategoryLegend(
-            List<Map.Entry<String, Double>>
-                    categories,
-            double totalExpense
+            List<Map.Entry<String, Double>> categories,
+            double total
     ) {
 
-        categoryLegendContainer
-                .removeAllViews();
+        categoryLegendContainer.removeAllViews();
 
         int limit =
                 Math.min(
@@ -828,25 +753,18 @@ public class AnalyticsActivity extends AppCompatActivity {
         for (int i = 0; i < limit; i++) {
 
             String category =
-                    categories
-                            .get(i)
-                            .getKey();
+                    categories.get(i).getKey();
 
             double amount =
-                    categories
-                            .get(i)
-                            .getValue();
+                    categories.get(i).getValue();
 
             double percentage =
-                    totalExpense > 0
-                            ? amount /
-                              totalExpense * 100
+                    total > 0
+                            ? amount / total * 100
                             : 0;
 
             LinearLayout row =
-                    new LinearLayout(
-                            this
-                    );
+                    new LinearLayout(this);
 
             row.setOrientation(
                     LinearLayout.HORIZONTAL
@@ -858,77 +776,51 @@ public class AnalyticsActivity extends AppCompatActivity {
 
             row.setPadding(
                     0,
-                    7,
+                    6,
                     0,
-                    7
+                    6
             );
 
             TextView dot =
                     new TextView(this);
 
-            dot.setText(
-                    "●"
-            );
-
-            dot.setTextSize(
-                    17
-            );
-
+            dot.setText("●");
+            dot.setTextSize(16);
             dot.setTextColor(
                     getCategoryColor(i)
             );
 
-            LinearLayout.LayoutParams
-                    dotParams =
-                    new LinearLayout.LayoutParams(
-                            30,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                    );
-
             row.addView(
                     dot,
-                    dotParams
+                    new LinearLayout.LayoutParams(
+                            30,
+                            -2
+                    )
             );
 
             TextView name =
                     new TextView(this);
 
-            name.setText(
-                    category
-            );
-
-            name.setTextSize(
-                    14
-            );
-
+            name.setText(category);
+            name.setTextSize(14);
             name.setTextColor(
-                    Color.rgb(
-                            40,
-                            40,
-                            40
-                    )
+                    Color.rgb(50, 50, 50)
             );
-
-            LinearLayout.LayoutParams
-                    nameParams =
-                    new LinearLayout.LayoutParams(
-                            0,
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            1
-                    );
 
             row.addView(
                     name,
-                    nameParams
+                    new LinearLayout.LayoutParams(
+                            0,
+                            -2,
+                            1
+                    )
             );
 
             TextView value =
                     new TextView(this);
 
             value.setText(
-                    formatCurrency(
-                            amount
-                    )
+                    formatCurrency(amount)
                             + "  "
                             + String.format(
                             Locale.getDefault(),
@@ -937,80 +829,30 @@ public class AnalyticsActivity extends AppCompatActivity {
                     )
             );
 
-            value.setTextSize(
-                    13
-            );
-
+            value.setTextSize(13);
             value.setTextColor(
-                    Color.rgb(
-                            100,
-                            100,
-                            100
-                    )
+                    Color.GRAY
             );
 
-            row.addView(
-                    value
-            );
+            row.addView(value);
 
-            categoryLegendContainer
-                    .addView(row);
+            categoryLegendContainer.addView(
+                    row
+            );
         }
     }
 
-    private int getCategoryColor(
-            int index
-    ) {
+    private int getCategoryColor(int index) {
 
         int[] colors = {
-
-                Color.rgb(
-                        126,
-                        87,
-                        194
-                ),
-
-                Color.rgb(
-                        66,
-                        133,
-                        244
-                ),
-
-                Color.rgb(
-                        52,
-                        168,
-                        83
-                ),
-
-                Color.rgb(
-                        251,
-                        188,
-                        4
-                ),
-
-                Color.rgb(
-                        234,
-                        67,
-                        53
-                ),
-
-                Color.rgb(
-                        156,
-                        39,
-                        176
-                ),
-
-                Color.rgb(
-                        0,
-                        150,
-                        136
-                ),
-
-                Color.rgb(
-                        255,
-                        112,
-                        67
-                )
+                Color.rgb(126, 87, 194),
+                Color.rgb(66, 133, 244),
+                Color.rgb(52, 168, 83),
+                Color.rgb(251, 188, 4),
+                Color.rgb(234, 67, 53),
+                Color.rgb(156, 39, 176),
+                Color.rgb(0, 150, 136),
+                Color.rgb(255, 112, 67)
         };
 
         return colors[
@@ -1018,26 +860,67 @@ public class AnalyticsActivity extends AppCompatActivity {
                 ];
     }
 
-    // ============================================================
-    // TREND
-    // ============================================================
+    // =========================================================
+    // PIE CHART
+    // =========================================================
+
+    private void setupPieChart() {
+
+        pieChart
+                .getDescription()
+                .setEnabled(false);
+
+        pieChart.setDrawHoleEnabled(true);
+        pieChart.setHoleRadius(58f);
+        pieChart.setTransparentCircleRadius(63f);
+        pieChart.setDrawEntryLabels(false);
+        pieChart.getLegend().setEnabled(false);
+    }
+
+    // =========================================================
+    // LINE CHART
+    // =========================================================
+
+    private void setupLineChart() {
+
+        lineChart
+                .getDescription()
+                .setEnabled(false);
+
+        lineChart
+                .getLegend()
+                .setEnabled(false);
+
+        lineChart
+                .getXAxis()
+                .setPosition(
+                        XAxis.XAxisPosition.BOTTOM
+                );
+
+        lineChart
+                .getAxisRight()
+                .setEnabled(false);
+
+        lineChart.setTouchEnabled(true);
+        lineChart.setPinchZoom(true);
+    }
 
     private void calculateTrend(
             List<Transaction> transactions
     ) {
 
-        int selectedPeriod =
+        int selected =
                 spinnerPeriod
                         .getSelectedItemPosition();
 
-        if (selectedPeriod == 0 ||
-                selectedPeriod == 1) {
+        if (selected == 0 ||
+                selected == 1) {
 
             tvTrendTitle.setText(
                     "Daily Trend"
             );
 
-            calculateDailyTrend(
+            buildDailyTrend(
                     transactions
             );
 
@@ -1047,17 +930,13 @@ public class AnalyticsActivity extends AppCompatActivity {
                     "Monthly Trend"
             );
 
-            calculateMonthlyTrend(
+            buildMonthlyTrend(
                     transactions
             );
         }
     }
 
-    // ============================================================
-    // DAILY TREND
-    // ============================================================
-
-    private void calculateDailyTrend(
+    private void buildDailyTrend(
             List<Transaction> transactions
     ) {
 
@@ -1071,61 +950,50 @@ public class AnalyticsActivity extends AppCompatActivity {
                 new ArrayList<>();
 
         Calendar cursor =
-                (Calendar)
-                        period.start.clone();
+                (Calendar) period.start.clone();
 
         int index = 0;
 
-        while (!cursor.after(
-                period.end
-        )) {
+        while (!cursor.after(period.end)) {
 
-            Calendar currentDay =
-                    (Calendar)
-                            cursor.clone();
+            Calendar day =
+                    (Calendar) cursor.clone();
 
-            double total = 0;
+            double amount = 0;
 
             for (Transaction transaction :
                     transactions) {
 
-                Date transactionDate =
+                Date date =
                         parseDate(
                                 transaction.getDate()
                         );
 
-                if (transactionDate == null) {
-
+                if (date == null) {
                     continue;
                 }
 
-                Calendar transactionCalendar =
+                Calendar transactionDate =
                         Calendar.getInstance();
 
-                transactionCalendar.setTime(
-                        transactionDate
-                );
+                transactionDate.setTime(date);
 
                 if (isSameDay(
-                        transactionCalendar,
-                        currentDay
+                        transactionDate,
+                        day
                 )) {
 
                     if (showIncomeTrend &&
-                            isIncome(
-                                    transaction
-                            )) {
+                            isIncome(transaction)) {
 
-                        total +=
+                        amount +=
                                 transaction.getAmount();
                     }
 
                     if (!showIncomeTrend &&
-                            isExpense(
-                                    transaction
-                            )) {
+                            isExpense(transaction)) {
 
-                        total +=
+                        amount +=
                                 transaction.getAmount();
                     }
                 }
@@ -1134,7 +1002,7 @@ public class AnalyticsActivity extends AppCompatActivity {
             entries.add(
                     new Entry(
                             index,
-                            (float) total
+                            (float) amount
                     )
             );
 
@@ -1143,7 +1011,7 @@ public class AnalyticsActivity extends AppCompatActivity {
                             "d MMM",
                             Locale.getDefault()
                     ).format(
-                            currentDay.getTime()
+                            day.getTime()
                     )
             );
 
@@ -1155,17 +1023,13 @@ public class AnalyticsActivity extends AppCompatActivity {
             );
         }
 
-        renderTrendChart(
+        renderLineChart(
                 entries,
                 labels
         );
     }
 
-    // ============================================================
-    // MONTHLY TREND
-    // ============================================================
-
-    private void calculateMonthlyTrend(
+    private void buildMonthlyTrend(
             List<Transaction> transactions
     ) {
 
@@ -1179,8 +1043,7 @@ public class AnalyticsActivity extends AppCompatActivity {
                 new ArrayList<>();
 
         Calendar cursor =
-                (Calendar)
-                        period.start.clone();
+                (Calendar) period.start.clone();
 
         cursor.set(
                 Calendar.DAY_OF_MONTH,
@@ -1188,8 +1051,7 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
 
         Calendar end =
-                (Calendar)
-                        period.end.clone();
+                (Calendar) period.end.clone();
 
         end.set(
                 Calendar.DAY_OF_MONTH,
@@ -1198,75 +1060,57 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         int index = 0;
 
-        SimpleDateFormat monthFormat =
-                new SimpleDateFormat(
-                        "MMM",
-                        Locale.getDefault()
-                );
-
         while (!cursor.after(end)) {
 
             int month =
-                    cursor.get(
-                            Calendar.MONTH
-                    );
+                    cursor.get(Calendar.MONTH);
 
             int year =
-                    cursor.get(
-                            Calendar.YEAR
-                    );
+                    cursor.get(Calendar.YEAR);
 
-            double total = 0;
+            double amount = 0;
 
             for (Transaction transaction :
                     transactions) {
 
-                Date transactionDate =
+                Date date =
                         parseDate(
                                 transaction.getDate()
                         );
 
-                if (transactionDate == null) {
-
+                if (date == null) {
                     continue;
                 }
 
-                Calendar transactionCalendar =
+                Calendar transactionDate =
                         Calendar.getInstance();
 
-                transactionCalendar.setTime(
-                        transactionDate
-                );
+                transactionDate.setTime(date);
 
                 boolean sameMonth =
-                        transactionCalendar.get(
+                        transactionDate.get(
                                 Calendar.MONTH
                         ) == month
                                 &&
-                                transactionCalendar.get(
+                                transactionDate.get(
                                         Calendar.YEAR
                                 ) == year;
 
                 if (!sameMonth) {
-
                     continue;
                 }
 
                 if (showIncomeTrend &&
-                        isIncome(
-                                transaction
-                        )) {
+                        isIncome(transaction)) {
 
-                    total +=
+                    amount +=
                             transaction.getAmount();
                 }
 
                 if (!showIncomeTrend &&
-                        isExpense(
-                                transaction
-                        )) {
+                        isExpense(transaction)) {
 
-                    total +=
+                    amount +=
                             transaction.getAmount();
                 }
             }
@@ -1274,12 +1118,15 @@ public class AnalyticsActivity extends AppCompatActivity {
             entries.add(
                     new Entry(
                             index,
-                            (float) total
+                            (float) amount
                     )
             );
 
             labels.add(
-                    monthFormat.format(
+                    new SimpleDateFormat(
+                            "MMM",
+                            Locale.getDefault()
+                    ).format(
                             cursor.getTime()
                     )
             );
@@ -1292,40 +1139,23 @@ public class AnalyticsActivity extends AppCompatActivity {
             );
         }
 
-        renderTrendChart(
+        renderLineChart(
                 entries,
                 labels
         );
     }
 
-    // ============================================================
-    // RENDER TREND CHART
-    // ============================================================
-
-    private void renderTrendChart(
+    private void renderLineChart(
             ArrayList<Entry> entries,
             ArrayList<String> labels
     ) {
-
-        if (entries.isEmpty()) {
-
-            lineChart.clear();
-
-            tvNoTrendData.setVisibility(
-                    View.VISIBLE
-            );
-
-            return;
-        }
 
         boolean hasData = false;
 
         for (Entry entry : entries) {
 
             if (entry.getY() > 0) {
-
                 hasData = true;
-
                 break;
             }
         }
@@ -1345,96 +1175,49 @@ public class AnalyticsActivity extends AppCompatActivity {
                 View.GONE
         );
 
-        int lineColor =
+        int color =
                 showIncomeTrend
                         ? GREEN
                         : PURPLE;
 
-        String label =
-                showIncomeTrend
-                        ? "Income"
-                        : "Expense";
-
         LineDataSet dataSet =
                 new LineDataSet(
                         entries,
-                        label
+                        showIncomeTrend
+                                ? "Income"
+                                : "Expense"
                 );
 
-        dataSet.setColor(
-                lineColor
-        );
-
-        dataSet.setCircleColor(
-                lineColor
-        );
-
-        dataSet.setLineWidth(
-                2.5f
-        );
-
-        dataSet.setCircleRadius(
-                3.5f
-        );
-
-        dataSet.setDrawValues(
-                false
-        );
-
-        dataSet.setDrawFilled(
-                true
-        );
-
-        dataSet.setFillAlpha(
-                35
-        );
-
+        dataSet.setColor(color);
+        dataSet.setCircleColor(color);
+        dataSet.setLineWidth(2.5f);
+        dataSet.setCircleRadius(3.5f);
+        dataSet.setDrawValues(false);
+        dataSet.setDrawFilled(true);
+        dataSet.setFillAlpha(30);
         dataSet.setMode(
                 LineDataSet.Mode.CUBIC_BEZIER
         );
 
-        LineData lineData =
-                new LineData(
-                        dataSet
+        lineChart.setData(
+                new LineData(dataSet)
+        );
+
+        lineChart
+                .getXAxis()
+                .setValueFormatter(
+                        new IndexAxisValueFormatter(
+                                labels
+                        )
                 );
 
-        lineChart.setData(
-                lineData
-        );
+        lineChart
+                .getXAxis()
+                .setGranularity(1f);
 
-        XAxis xAxis =
-                lineChart.getXAxis();
-
-        xAxis.setValueFormatter(
-                new IndexAxisValueFormatter(
-                        labels
-                )
-        );
-
-        int labelCount;
-
-        if (labels.size() <= 12) {
-
-            labelCount =
-                    labels.size();
-
-        } else {
-
-            labelCount = 7;
-        }
-
-        xAxis.setLabelCount(
-                labelCount,
-                true
-        );
-
-        xAxis.setGranularity(
-                1f
-        );
-
-        xAxis.setDrawGridLines(
-                false
-        );
+        lineChart
+                .getXAxis()
+                .setDrawGridLines(false);
 
         lineChart
                 .getAxisLeft()
@@ -1442,8 +1225,7 @@ public class AnalyticsActivity extends AppCompatActivity {
                         new ValueFormatter() {
 
                             @Override
-                            public String
-                            getFormattedValue(
+                            public String getFormattedValue(
                                     float value
                             ) {
 
@@ -1454,74 +1236,1026 @@ public class AnalyticsActivity extends AppCompatActivity {
                         }
                 );
 
-        lineChart
-                .getAxisLeft()
-                .setDrawGridLines(
-                        true
-                );
-
-        lineChart
-                .getAxisRight()
-                .setEnabled(
-                        false
-                );
-
-        lineChart.animateX(
-                600
-        );
-
+        lineChart.animateX(500);
         lineChart.invalidate();
     }
 
-    // ============================================================
+    // =========================================================
+    // 🔥 EXPENSE HEATMAP
+    // =========================================================
+
+    private void buildHeatmap() {
+
+        heatmapContainer.removeAllViews();
+
+        int selected =
+                spinnerPeriod
+                        .getSelectedItemPosition();
+
+        if (selected == 3) {
+
+            buildYearHeatmap();
+
+        } else if (selected == 2) {
+
+            buildThreeMonthHeatmap();
+
+        } else {
+
+            buildMonthHeatmap(
+                    getSelectedPeriod()
+            );
+        }
+    }
+
+    // =========================================================
+    // MONTH HEATMAP
+    // =========================================================
+
+    private void buildMonthHeatmap(
+            Period period
+    ) {
+
+        tvHeatmapTitle.setText(
+                "Expense Heatmap"
+        );
+
+        tvHeatmapSummary.setText(
+                "Daily spending intensity"
+        );
+
+        Map<String, Double> daily =
+                getDailyExpenseMap(period);
+
+        double max =
+                getMaxValue(daily);
+
+        Calendar first =
+                (Calendar) period.start.clone();
+
+        first.set(
+                Calendar.DAY_OF_MONTH,
+                1
+        );
+
+        int firstDay =
+                first.get(Calendar.DAY_OF_WEEK);
+
+        int days =
+                first.getActualMaximum(
+                        Calendar.DAY_OF_MONTH
+                );
+
+        addWeekHeader();
+
+        LinearLayout row = null;
+
+        int position = 0;
+
+        // Empty cells before day 1
+        int offset = firstDay - 1;
+
+        for (int i = 0; i < offset; i++) {
+
+            if (position % 7 == 0) {
+
+                row =
+                        createHeatmapRow();
+
+                heatmapContainer.addView(row);
+            }
+
+            addEmptyCell(row);
+
+            position++;
+        }
+
+        for (int dayNumber = 1;
+             dayNumber <= days;
+             dayNumber++) {
+
+            if (position % 7 == 0) {
+
+                row =
+                        createHeatmapRow();
+
+                heatmapContainer.addView(row);
+            }
+
+            Calendar day =
+                    (Calendar) first.clone();
+
+            day.set(
+                    Calendar.DAY_OF_MONTH,
+                    dayNumber
+            );
+
+            String key =
+                    getDateKey(day);
+
+            double amount =
+                    daily.getOrDefault(
+                            key,
+                            0.0
+                    );
+
+            row.addView(
+                    createHeatCell(
+                            day,
+                            amount,
+                            max
+                    )
+            );
+
+            position++;
+        }
+
+        while (position % 7 != 0) {
+
+            addEmptyCell(row);
+
+            position++;
+        }
+
+        addHeatmapLegend();
+    }
+
+    // =========================================================
+    // THREE MONTH HEATMAP
+    // =========================================================
+
+    private void buildThreeMonthHeatmap() {
+
+        tvHeatmapTitle.setText(
+                "3-Month Expense Heatmap"
+        );
+
+        tvHeatmapSummary.setText(
+                "Daily spending across recent months"
+        );
+
+        Calendar end =
+                Calendar.getInstance();
+
+        Calendar start =
+                (Calendar) end.clone();
+
+        start.set(
+                Calendar.DAY_OF_MONTH,
+                1
+        );
+
+        start.add(
+                Calendar.MONTH,
+                -2
+        );
+
+        Period period =
+                new Period(
+                        start,
+                        end
+                );
+
+        Map<String, Double> daily =
+                getDailyExpenseMap(period);
+
+        double max =
+                getMaxValue(daily);
+
+        addWeekHeader();
+
+        LinearLayout row = null;
+
+        int position = 0;
+
+        Calendar cursor =
+                (Calendar) start.clone();
+
+        while (!cursor.after(end)) {
+
+            if (position % 7 == 0) {
+
+                row =
+                        createHeatmapRow();
+
+                heatmapContainer.addView(row);
+            }
+
+            double amount =
+                    daily.getOrDefault(
+                            getDateKey(cursor),
+                            0.0
+                    );
+
+            row.addView(
+                    createHeatCell(
+                            cursor,
+                            amount,
+                            max
+                    )
+            );
+
+            position++;
+
+            cursor.add(
+                    Calendar.DAY_OF_MONTH,
+                    1
+            );
+        }
+
+        addHeatmapLegend();
+    }
+
+    // =========================================================
+    // YEAR HEATMAP
+    // =========================================================
+
+    private void buildYearHeatmap() {
+
+        tvHeatmapTitle.setText(
+                "Yearly Expense Heatmap"
+        );
+
+        tvHeatmapSummary.setText(
+                "Monthly spending intensity"
+        );
+
+        Calendar start =
+                Calendar.getInstance();
+
+        start.set(
+                Calendar.MONTH,
+                Calendar.JANUARY
+        );
+
+        start.set(
+                Calendar.DAY_OF_MONTH,
+                1
+        );
+
+        Calendar end =
+                (Calendar) start.clone();
+
+        end.set(
+                Calendar.MONTH,
+                Calendar.DECEMBER
+        );
+
+        end.set(
+                Calendar.DAY_OF_MONTH,
+                31
+        );
+
+        Period period =
+                new Period(
+                        start,
+                        end
+                );
+
+        Map<String, Double> monthly =
+                getMonthlyExpenseMap(period);
+
+        double max =
+                getMaxValue(monthly);
+
+        LinearLayout row =
+                createHeatmapRow();
+
+        heatmapContainer.addView(row);
+
+        Calendar cursor =
+                (Calendar) start.clone();
+
+        for (int i = 0; i < 12; i++) {
+
+            double amount =
+                    monthly.getOrDefault(
+                            getMonthKey(cursor),
+                            0.0
+                    );
+
+            row.addView(
+                    createMonthHeatCell(
+                            cursor,
+                            amount,
+                            max
+                    )
+            );
+
+            cursor.add(
+                    Calendar.MONTH,
+                    1
+            );
+        }
+
+        addHeatmapLegend();
+    }
+
+    // =========================================================
+    // DAILY MAP
+    // =========================================================
+
+    private Map<String, Double>
+    getDailyExpenseMap(
+            Period period
+    ) {
+
+        Map<String, Double> map =
+                new HashMap<>();
+
+        for (Transaction transaction :
+                allTransactions) {
+
+            if (!isExpense(transaction)) {
+                continue;
+            }
+
+            Date date =
+                    parseDate(
+                            transaction.getDate()
+                    );
+
+            if (date == null) {
+                continue;
+            }
+
+            Calendar calendar =
+                    Calendar.getInstance();
+
+            calendar.setTime(date);
+
+            if (calendar.before(period.start) ||
+                    calendar.after(period.end)) {
+                continue;
+            }
+
+            String key =
+                    getDateKey(calendar);
+
+            map.put(
+                    key,
+                    map.getOrDefault(
+                            key,
+                            0.0
+                    )
+                            +
+                            transaction.getAmount()
+            );
+        }
+
+        return map;
+    }
+
+    // =========================================================
+    // MONTHLY MAP
+    // =========================================================
+
+    private Map<String, Double>
+    getMonthlyExpenseMap(
+            Period period
+    ) {
+
+        Map<String, Double> map =
+                new HashMap<>();
+
+        for (Transaction transaction :
+                allTransactions) {
+
+            if (!isExpense(transaction)) {
+                continue;
+            }
+
+            Date date =
+                    parseDate(
+                            transaction.getDate()
+                    );
+
+            if (date == null) {
+                continue;
+            }
+
+            Calendar calendar =
+                    Calendar.getInstance();
+
+            calendar.setTime(date);
+
+            if (calendar.before(period.start) ||
+                    calendar.after(period.end)) {
+                continue;
+            }
+
+            String key =
+                    getMonthKey(calendar);
+
+            map.put(
+                    key,
+                    map.getOrDefault(
+                            key,
+                            0.0
+                    )
+                            +
+                            transaction.getAmount()
+            );
+        }
+
+        return map;
+    }
+
+    // =========================================================
+    // HEATMAP CELL
+    // =========================================================
+
+    private TextView createHeatCell(
+            Calendar date,
+            double amount,
+            double max
+    ) {
+
+        TextView cell =
+                new TextView(this);
+
+        cell.setText(
+                String.valueOf(
+                        date.get(
+                                Calendar.DAY_OF_MONTH
+                        )
+                )
+        );
+
+        cell.setGravity(
+                Gravity.CENTER
+        );
+
+        cell.setTextSize(11);
+
+        cell.setTypeface(
+                null,
+                Typeface.BOLD
+        );
+
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setColor(
+                getHeatColor(
+                        amount,
+                        max
+                )
+        );
+
+        background.setCornerRadius(
+                10f
+        );
+
+        cell.setBackground(
+                background
+        );
+
+        cell.setTextColor(
+                amount > 0
+                        ? Color.WHITE
+                        : Color.rgb(
+                        105,
+                        100,
+                        115
+                )
+        );
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        42,
+                        42
+                );
+
+        params.setMargins(
+                3,
+                3,
+                3,
+                3
+        );
+
+        cell.setLayoutParams(params);
+
+        Calendar clickedDate =
+                (Calendar) date.clone();
+
+        cell.setOnClickListener(
+                v ->
+                        showDayDialog(
+                                clickedDate,
+                                amount
+                        )
+        );
+
+        return cell;
+    }
+
+    // =========================================================
+    // MONTH CELL
+    // =========================================================
+
+    private TextView createMonthHeatCell(
+            Calendar month,
+            double amount,
+            double max
+    ) {
+
+        TextView cell =
+                new TextView(this);
+
+        cell.setText(
+                new SimpleDateFormat(
+                        "MMM",
+                        Locale.getDefault()
+                ).format(
+                        month.getTime()
+                )
+        );
+
+        cell.setGravity(
+                Gravity.CENTER
+        );
+
+        cell.setTextSize(12);
+
+        cell.setTypeface(
+                null,
+                Typeface.BOLD
+        );
+
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setColor(
+                getHeatColor(
+                        amount,
+                        max
+                )
+        );
+
+        background.setCornerRadius(
+                12f
+        );
+
+        cell.setBackground(
+                background
+        );
+
+        cell.setTextColor(
+                amount > 0
+                        ? Color.WHITE
+                        : Color.rgb(
+                        100,
+                        95,
+                        110
+                )
+        );
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        58,
+                        58
+                );
+
+        params.setMargins(
+                4,
+                4,
+                4,
+                4
+        );
+
+        cell.setLayoutParams(params);
+
+        Calendar clicked =
+                (Calendar) month.clone();
+
+        cell.setOnClickListener(
+                v ->
+                        showMonthDialog(
+                                clicked,
+                                amount
+                        )
+        );
+
+        return cell;
+    }
+
+    // =========================================================
+    // EMPTY CELL
+    // =========================================================
+
+    private void addEmptyCell(
+            LinearLayout row
+    ) {
+
+        TextView empty =
+                new TextView(this);
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        42,
+                        42
+                );
+
+        params.setMargins(
+                3,
+                3,
+                3,
+                3
+        );
+
+        empty.setLayoutParams(params);
+
+        row.addView(empty);
+    }
+
+    // =========================================================
+    // HEADER
+    // =========================================================
+
+    private void addWeekHeader() {
+
+        LinearLayout row =
+                createHeatmapRow();
+
+        String[] days = {
+                "S",
+                "M",
+                "T",
+                "W",
+                "T",
+                "F",
+                "S"
+        };
+
+        for (String day : days) {
+
+            TextView text =
+                    new TextView(this);
+
+            text.setText(day);
+            text.setGravity(Gravity.CENTER);
+            text.setTextSize(11);
+            text.setTextColor(
+                    Color.rgb(
+                            120,
+                            115,
+                            130
+                    )
+            );
+
+            LinearLayout.LayoutParams params =
+                    new LinearLayout.LayoutParams(
+                            42,
+                            25
+                    );
+
+            params.setMargins(
+                    3,
+                    0,
+                    3,
+                    0
+            );
+
+            text.setLayoutParams(params);
+
+            row.addView(text);
+        }
+
+        heatmapContainer.addView(row);
+    }
+
+    private LinearLayout createHeatmapRow() {
+
+        LinearLayout row =
+                new LinearLayout(this);
+
+        row.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        row.setGravity(
+                Gravity.CENTER
+        );
+
+        row.setLayoutParams(
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+        );
+
+        return row;
+    }
+
+    // =========================================================
+    // HEAT COLOR
+    // =========================================================
+
+    private int getHeatColor(
+            double amount,
+            double max
+    ) {
+
+        if (amount <= 0 ||
+                max <= 0) {
+
+            return HEAT_0;
+        }
+
+        double ratio =
+                amount / max;
+
+        if (ratio <= 0.25) {
+            return HEAT_1;
+        }
+
+        if (ratio <= 0.50) {
+            return HEAT_2;
+        }
+
+        if (ratio <= 0.75) {
+            return HEAT_3;
+        }
+
+        return HEAT_4;
+    }
+
+    // =========================================================
+    // LEGEND
+    // =========================================================
+
+    private void addHeatmapLegend() {
+
+        LinearLayout legend =
+                new LinearLayout(this);
+
+        legend.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        legend.setGravity(
+                Gravity.CENTER_VERTICAL
+        );
+
+        legend.setPadding(
+                0,
+                12,
+                0,
+                4
+        );
+
+        TextView less =
+                new TextView(this);
+
+        less.setText("Less");
+        less.setTextSize(11);
+        less.setTextColor(Color.GRAY);
+
+        legend.addView(less);
+
+        int[] colors = {
+                HEAT_0,
+                HEAT_1,
+                HEAT_2,
+                HEAT_3,
+                HEAT_4
+        };
+
+        for (int color : colors) {
+
+            View box =
+                    new View(this);
+
+            GradientDrawable drawable =
+                    new GradientDrawable();
+
+            drawable.setColor(color);
+            drawable.setCornerRadius(5f);
+
+            box.setBackground(drawable);
+
+            LinearLayout.LayoutParams params =
+                    new LinearLayout.LayoutParams(
+                            22,
+                            22
+                    );
+
+            params.setMargins(
+                    5,
+                    0,
+                    0,
+                    0
+            );
+
+            box.setLayoutParams(params);
+
+            legend.addView(box);
+        }
+
+        TextView more =
+                new TextView(this);
+
+        more.setText("More");
+        more.setTextSize(11);
+        more.setTextColor(Color.GRAY);
+
+        LinearLayout.LayoutParams moreParams =
+                new LinearLayout.LayoutParams(
+                        -2,
+                        -2
+                );
+
+        moreParams.setMargins(
+                6,
+                0,
+                0,
+                0
+        );
+
+        more.setLayoutParams(
+                moreParams
+        );
+
+        legend.addView(more);
+
+        heatmapContainer.addView(
+                legend
+        );
+    }
+
+    // =========================================================
+    // HEATMAP DIALOG
+    // =========================================================
+
+    private void showDayDialog(
+            Calendar date,
+            double amount
+    ) {
+
+        String title =
+                new SimpleDateFormat(
+                        "EEEE, d MMMM yyyy",
+                        Locale.getDefault()
+                ).format(
+                        date.getTime()
+                );
+
+        int count =
+                countExpensesOnDay(date);
+
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(
+                        "Expense: "
+                                + formatCurrency(amount)
+                                + "\n\nTransactions: "
+                                + count
+                )
+                .setPositiveButton(
+                        "OK",
+                        null
+                )
+                .show();
+    }
+
+    private void showMonthDialog(
+            Calendar month,
+            double amount
+    ) {
+
+        String title =
+                new SimpleDateFormat(
+                        "MMMM yyyy",
+                        Locale.getDefault()
+                ).format(
+                        month.getTime()
+                );
+
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(
+                        "Total expense: "
+                                + formatCurrency(amount)
+                )
+                .setPositiveButton(
+                        "OK",
+                        null
+                )
+                .show();
+    }
+
+    private int countExpensesOnDay(
+            Calendar target
+    ) {
+
+        int count = 0;
+
+        for (Transaction transaction :
+                allTransactions) {
+
+            if (!isExpense(transaction)) {
+                continue;
+            }
+
+            Date date =
+                    parseDate(
+                            transaction.getDate()
+                    );
+
+            if (date == null) {
+                continue;
+            }
+
+            Calendar current =
+                    Calendar.getInstance();
+
+            current.setTime(date);
+
+            if (isSameDay(
+                    current,
+                    target
+            )) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    // =========================================================
     // INSIGHTS
-    // ============================================================
+    // =========================================================
 
     private void calculateInsights(
             List<Transaction> current,
             List<Transaction> previous
     ) {
 
-        double currentIncome = 0;
-
-        double currentExpense = 0;
-
+        double income = 0;
+        double expense = 0;
         double previousExpense = 0;
 
-        for (Transaction transaction :
-                current) {
+        for (Transaction transaction : current) {
 
             if (isIncome(transaction)) {
-
-                currentIncome +=
-                        transaction.getAmount();
+                income += transaction.getAmount();
             }
 
             if (isExpense(transaction)) {
-
-                currentExpense +=
-                        transaction.getAmount();
+                expense += transaction.getAmount();
             }
         }
 
-        for (Transaction transaction :
-                previous) {
+        for (Transaction transaction : previous) {
 
             if (isExpense(transaction)) {
-
                 previousExpense +=
                         transaction.getAmount();
             }
         }
 
-        Map<String, Double> categoryMap =
+        double savings =
+                income - expense;
+
+        double savingsRate =
+                income > 0
+                        ? savings / income * 100
+                        : 0;
+
+        if (income <= 0) {
+
+            tvSavingsInsight.setText(
+                    "Add income transactions to track your savings rate."
+            );
+
+        } else if (savingsRate >= 30) {
+
+            tvSavingsInsight.setText(
+                    String.format(
+                            Locale.getDefault(),
+                            "Great job! You saved %.1f%% of your income.",
+                            savingsRate
+                    )
+            );
+
+        } else {
+
+            tvSavingsInsight.setText(
+                    String.format(
+                            Locale.getDefault(),
+                            "Your current savings rate is %.1f%%.",
+                            savingsRate
+                    )
+            );
+        }
+
+        Map<String, Double> categories =
                 new HashMap<>();
 
-        for (Transaction transaction :
-                current) {
+        for (Transaction transaction : current) {
 
             if (!isExpense(transaction)) {
-
                 continue;
             }
 
@@ -1534,26 +2268,24 @@ public class AnalyticsActivity extends AppCompatActivity {
                 category = "Other";
             }
 
-            categoryMap.put(
+            categories.put(
                     category,
-                    categoryMap.getOrDefault(
+                    categories.getOrDefault(
                             category,
                             0.0
                     )
-                            + transaction.getAmount()
+                            +
+                            transaction.getAmount()
             );
         }
 
-        String topCategory =
-                "No data";
-
+        String topCategory = "No data";
         double topAmount = 0;
 
         for (Map.Entry<String, Double> entry :
-                categoryMap.entrySet()) {
+                categories.entrySet()) {
 
-            if (entry.getValue() >
-                    topAmount) {
+            if (entry.getValue() > topAmount) {
 
                 topAmount =
                         entry.getValue();
@@ -1563,141 +2295,52 @@ public class AnalyticsActivity extends AppCompatActivity {
             }
         }
 
-        double savings =
-                currentIncome -
-                        currentExpense;
+        tvCategoryInsight.setText(
+                topCategory.equals("No data")
+                        ? "Add expenses to discover your top category."
+                        : topCategory
+                          + " is your highest spending category with "
+                          + formatCurrency(topAmount)
+                          + "."
+        );
 
-        double savingsRate =
-                currentIncome > 0
-                        ? savings /
-                          currentIncome *
-                          100
-                        : 0;
-
-        double expenseChange =
+        double change =
                 calculatePercentageChange(
                         previousExpense,
-                        currentExpense
+                        expense
                 );
 
-        String savingsInsight;
+        if (change > 10) {
 
-        if (currentIncome <= 0) {
-
-            savingsInsight =
-                    "Add income transactions "
-                            + "to track your savings rate.";
-
-        } else if (savingsRate >= 30) {
-
-            savingsInsight =
-                    "Great job! You saved "
-                            + String.format(
+            tvSpendingInsight.setText(
+                    String.format(
                             Locale.getDefault(),
-                            "%.1f%%",
-                            savingsRate
+                            "Your spending increased by %.1f%% compared with the previous period.",
+                            change
                     )
-                            + " of your income.";
+            );
 
-        } else if (savingsRate >= 10) {
+        } else if (change < -10) {
 
-            savingsInsight =
-                    "You saved "
-                            + String.format(
+            tvSpendingInsight.setText(
+                    String.format(
                             Locale.getDefault(),
-                            "%.1f%%",
-                            savingsRate
+                            "Nice! Your spending decreased by %.1f%%.",
+                            Math.abs(change)
                     )
-                            + " of your income.";
+            );
 
         } else {
 
-            savingsInsight =
-                    "Your savings rate is low. "
-                            + "Consider reducing "
-                            + "unnecessary expenses.";
+            tvSpendingInsight.setText(
+                    "Your spending is relatively stable compared with the previous period."
+            );
         }
-
-        String categoryInsight;
-
-        if (!topCategory.equals(
-                "No data"
-        )) {
-
-            categoryInsight =
-                    topCategory
-                            + " is your highest "
-                            + "spending category with "
-                            + formatCurrency(
-                            topAmount
-                    )
-                            + ".";
-
-        } else {
-
-            categoryInsight =
-                    "Add expenses to discover "
-                            + "your top spending category.";
-        }
-
-        String spendingInsight;
-
-        if (previousExpense <= 0 &&
-                currentExpense > 0) {
-
-            spendingInsight =
-                    "This is your first tracked "
-                            + "expense period.";
-
-        } else if (expenseChange > 10) {
-
-            spendingInsight =
-                    "Your spending increased by "
-                            + String.format(
-                            Locale.getDefault(),
-                            "%.1f%%",
-                            expenseChange
-                    )
-                            + " compared with the "
-                            + "previous period.";
-
-        } else if (expenseChange < -10) {
-
-            spendingInsight =
-                    "Nice! Your spending decreased by "
-                            + String.format(
-                            Locale.getDefault(),
-                            "%.1f%%",
-                            Math.abs(
-                                    expenseChange
-                            )
-                    )
-                            + ".";
-
-        } else {
-
-            spendingInsight =
-                    "Your spending is relatively "
-                            + "stable compared with "
-                            + "the previous period.";
-        }
-
-        tvSavingsInsight.setText(
-                savingsInsight
-        );
-
-        tvCategoryInsight.setText(
-                categoryInsight
-        );
-
-        tvSpendingInsight.setText(
-                spendingInsight
-        );
     }
 
-    // ============================================================
+    // =========================================================
     // PERIOD
-    // ============================================================
+    // =========================================================
 
     private Period getSelectedPeriod() {
 
@@ -1713,16 +2356,12 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         if (selected == 0) {
 
-            // THIS MONTH
-
             start.set(
                     Calendar.DAY_OF_MONTH,
                     1
             );
 
         } else if (selected == 1) {
-
-            // LAST MONTH
 
             start.set(
                     Calendar.DAY_OF_MONTH,
@@ -1753,8 +2392,6 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         } else if (selected == 2) {
 
-            // LAST 3 MONTHS
-
             start.set(
                     Calendar.DAY_OF_MONTH,
                     1
@@ -1766,8 +2403,6 @@ public class AnalyticsActivity extends AppCompatActivity {
             );
 
         } else {
-
-            // THIS YEAR
 
             start.set(
                     Calendar.MONTH,
@@ -1781,7 +2416,6 @@ public class AnalyticsActivity extends AppCompatActivity {
         }
 
         setStartOfDay(start);
-
         setEndOfDay(end);
 
         return new Period(
@@ -1790,21 +2424,15 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
     }
 
-    // ============================================================
-    // PREVIOUS PERIOD
-    // ============================================================
-
     private Period getPreviousPeriod(
             Period current
     ) {
 
         Calendar start =
-                (Calendar)
-                        current.start.clone();
+                (Calendar) current.start.clone();
 
         Calendar end =
-                (Calendar)
-                        current.end.clone();
+                (Calendar) current.end.clone();
 
         int selected =
                 spinnerPeriod
@@ -1854,12 +2482,11 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
     }
 
-    // ============================================================
-    // FILTER TRANSACTIONS
-    // ============================================================
+    // =========================================================
+    // FILTER
+    // =========================================================
 
     private List<Transaction> filterTransactions(
-            List<Transaction> transactions,
             Calendar start,
             Calendar end
     ) {
@@ -1868,7 +2495,7 @@ public class AnalyticsActivity extends AppCompatActivity {
                 new ArrayList<>();
 
         for (Transaction transaction :
-                transactions) {
+                allTransactions) {
 
             Date date =
                     parseDate(
@@ -1876,37 +2503,28 @@ public class AnalyticsActivity extends AppCompatActivity {
                     );
 
             if (date == null) {
-
                 continue;
             }
 
             Calendar transactionDate =
                     Calendar.getInstance();
 
-            transactionDate.setTime(
-                    date
-            );
+            transactionDate.setTime(date);
 
-            if (!transactionDate.before(
-                    start
-            )
+            if (!transactionDate.before(start)
                     &&
-                    !transactionDate.after(
-                            end
-                    )) {
+                    !transactionDate.after(end)) {
 
-                result.add(
-                        transaction
-                );
+                result.add(transaction);
             }
         }
 
         return result;
     }
 
-    // ============================================================
+    // =========================================================
     // DATE
-    // ============================================================
+    // =========================================================
 
     private Date parseDate(
             String dateString
@@ -1931,30 +2549,22 @@ public class AnalyticsActivity extends AppCompatActivity {
     }
 
     private boolean isSameDay(
-            Calendar first,
-            Calendar second
+            Calendar a,
+            Calendar b
     ) {
 
-        return first.get(
-                Calendar.YEAR
-        ) ==
-                second.get(
-                        Calendar.YEAR
-                )
-
+        return a.get(Calendar.YEAR)
+                ==
+                b.get(Calendar.YEAR)
                 &&
-
-                first.get(
-                        Calendar.DAY_OF_YEAR
-                ) ==
-                        second.get(
-                                Calendar.DAY_OF_YEAR
-                        );
+                a.get(Calendar.DAY_OF_YEAR)
+                        ==
+                        b.get(Calendar.DAY_OF_YEAR);
     }
 
-    // ============================================================
+    // =========================================================
     // TRANSACTION TYPE
-    // ============================================================
+    // =========================================================
 
     private boolean isIncome(
             Transaction transaction
@@ -1974,9 +2584,43 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
     }
 
-    // ============================================================
-    // PERCENTAGE
-    // ============================================================
+    // =========================================================
+    // CALCULATIONS
+    // =========================================================
+
+    private double calculateAverageDaily(
+            List<Transaction> transactions
+    ) {
+
+        double total = 0;
+
+        for (Transaction transaction :
+                transactions) {
+
+            if (isExpense(transaction)) {
+
+                total +=
+                        transaction.getAmount();
+            }
+        }
+
+        Period period =
+                getSelectedPeriod();
+
+        long days =
+                (
+                        period.end.getTimeInMillis()
+                                -
+                                period.start.getTimeInMillis()
+                )
+                        /
+                        (24L * 60L * 60L * 1000L)
+                        + 1;
+
+        return days > 0
+                ? total / days
+                : 0;
+    }
 
     private double calculatePercentageChange(
             double previous,
@@ -1985,12 +2629,9 @@ public class AnalyticsActivity extends AppCompatActivity {
 
         if (previous == 0) {
 
-            if (current == 0) {
-
-                return 0;
-            }
-
-            return 100;
+            return current == 0
+                    ? 0
+                    : 100;
         }
 
         return (
@@ -1999,87 +2640,87 @@ public class AnalyticsActivity extends AppCompatActivity {
         ) * 100;
     }
 
-    // ============================================================
-    // AVERAGE DAILY EXPENSE
-    // ============================================================
-
-    private double calculateAverageDailyExpense(
-            List<Transaction> transactions
-    ) {
-
-        double totalExpense = 0;
-
-        for (Transaction transaction :
-                transactions) {
-
-            if (isExpense(transaction)) {
-
-                totalExpense +=
-                        transaction.getAmount();
-            }
-        }
-
-        Period period =
-                getSelectedPeriod();
-
-        long difference =
-                period.end.getTimeInMillis()
-                        -
-                        period.start.getTimeInMillis();
-
-        long days =
-                difference /
-                        (
-                                24L *
-                                        60L *
-                                        60L *
-                                        1000L
-                        )
-                        + 1;
-
-        if (days <= 0) {
-
-            return 0;
-        }
-
-        return totalExpense / days;
-    }
-
-    // ============================================================
-    // CHANGE TEXT
-    // ============================================================
-
     private String createChangeText(
-            double percentage
+            double previous,
+            double current
     ) {
 
-        if (percentage > 0) {
+        double change =
+                calculatePercentageChange(
+                        previous,
+                        current
+                );
+
+        if (change > 0) {
 
             return "↑ "
                     + String.format(
                     Locale.getDefault(),
                     "%.1f%% vs previous period",
-                    percentage
+                    change
             );
 
-        } else if (percentage < 0) {
+        } else if (change < 0) {
 
             return "↓ "
                     + String.format(
                     Locale.getDefault(),
                     "%.1f%% vs previous period",
-                    Math.abs(
-                            percentage
-                    )
+                    Math.abs(change)
             );
         }
 
         return "→ 0.0% vs previous period";
     }
 
-    // ============================================================
-    // CURRENCY
-    // ============================================================
+    // =========================================================
+    // HEATMAP HELPERS
+    // =========================================================
+
+    private double getMaxValue(
+            Map<String, Double> map
+    ) {
+
+        double max = 0;
+
+        for (double value : map.values()) {
+
+            if (value > max) {
+                max = value;
+            }
+        }
+
+        return max;
+    }
+
+    private String getDateKey(
+            Calendar calendar
+    ) {
+
+        return String.format(
+                Locale.getDefault(),
+                "%04d-%02d-%02d",
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+    }
+
+    private String getMonthKey(
+            Calendar calendar
+    ) {
+
+        return String.format(
+                Locale.getDefault(),
+                "%04d-%02d",
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1
+        );
+    }
+
+    // =========================================================
+    // FORMATTING
+    // =========================================================
 
     private String formatCurrency(
             double amount
@@ -2130,7 +2771,7 @@ public class AnalyticsActivity extends AppCompatActivity {
             return String.format(
                     Locale.getDefault(),
                     "₹%.1fL",
-                    value / 100000f
+                    value / 100000
             );
         }
 
@@ -2139,7 +2780,7 @@ public class AnalyticsActivity extends AppCompatActivity {
             return String.format(
                     Locale.getDefault(),
                     "₹%.1fk",
-                    value / 1000f
+                    value / 1000
             );
         }
 
@@ -2150,69 +2791,9 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
     }
 
-    // ============================================================
-    // TREND BUTTONS
-    // ============================================================
-
-    private void updateTrendButtonState() {
-
-        if (showIncomeTrend) {
-
-            btnIncomeTrend.setBackgroundTintList(
-                    ColorStateList.valueOf(
-                            PURPLE
-                    )
-            );
-
-            btnIncomeTrend.setTextColor(
-                    Color.WHITE
-            );
-
-            btnExpenseTrend.setBackgroundTintList(
-                    ColorStateList.valueOf(
-                            Color.WHITE
-                    )
-            );
-
-            btnExpenseTrend.setTextColor(
-                    Color.rgb(
-                            80,
-                            80,
-                            80
-                    )
-            );
-
-        } else {
-
-            btnExpenseTrend.setBackgroundTintList(
-                    ColorStateList.valueOf(
-                            PURPLE
-                    )
-            );
-
-            btnExpenseTrend.setTextColor(
-                    Color.WHITE
-            );
-
-            btnIncomeTrend.setBackgroundTintList(
-                    ColorStateList.valueOf(
-                            Color.WHITE
-                    )
-            );
-
-            btnIncomeTrend.setTextColor(
-                    Color.rgb(
-                            80,
-                            80,
-                            80
-                    )
-            );
-        }
-    }
-
-    // ============================================================
-    // CALENDAR HELPERS
-    // ============================================================
+    // =========================================================
+    // CALENDAR
+    // =========================================================
 
     private void setStartOfDay(
             Calendar calendar
@@ -2264,14 +2845,13 @@ public class AnalyticsActivity extends AppCompatActivity {
         );
     }
 
-    // ============================================================
+    // =========================================================
     // PERIOD MODEL
-    // ============================================================
+    // =========================================================
 
     private static class Period {
 
         Calendar start;
-
         Calendar end;
 
         Period(
@@ -2279,23 +2859,20 @@ public class AnalyticsActivity extends AppCompatActivity {
                 Calendar end
         ) {
 
-            this.start =
-                    start;
-
-            this.end =
-                    end;
+            this.start = start;
+            this.end = end;
         }
     }
 
-    // ============================================================
+    // =========================================================
     // DESTROY
-    // ============================================================
+    // =========================================================
 
     @Override
     protected void onDestroy() {
 
         super.onDestroy();
 
-        executorService.shutdown();
+        executor.shutdown();
     }
 }
