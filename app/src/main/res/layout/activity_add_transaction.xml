@@ -93,7 +93,7 @@
             android:layout_width="match_parent"
             android:layout_height="55dp"
             android:layout_marginTop="16dp"
-            android:text="📷  Scan Receipt"
+            android:text="Scan Receipt"
             android:textSize="15sp"
             android:textStyle="bold"
             app:cornerRadius="14dp" />
@@ -160,6 +160,14 @@
         <!-- ========================================= -->
         <!-- SAVE / UPDATE -->
         <!-- ========================================= -->
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/cbRecurring"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Repeat every month on this date"
+            android:textColor="#666666" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveTransaction"

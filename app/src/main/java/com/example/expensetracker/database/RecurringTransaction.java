@@ -3,8 +3,8 @@ package com.example.expensetracker.database;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "transactions")
-public class Transaction {
+@Entity(tableName = "recurring_transactions")
+public class RecurringTransaction {
 
     @PrimaryKey(autoGenerate = true)
     private int id;
@@ -13,26 +13,18 @@ public class Transaction {
     private String description;
     private String category;
     private String type;
-    private String date;
+    private int dayOfMonth; // 1-31
     private String userId;
 
-    // No-argument constructor required for Firebase Firestore
-    public Transaction() {
+    public RecurringTransaction() {
     }
 
-    public Transaction(
-            double amount,
-            String description,
-            String category,
-            String type,
-            String date,
-            String userId
-    ) {
+    public RecurringTransaction(double amount, String description, String category, String type, int dayOfMonth, String userId) {
         this.amount = amount;
         this.description = description;
         this.category = category;
         this.type = type;
-        this.date = date;
+        this.dayOfMonth = dayOfMonth;
         this.userId = userId;
     }
 
@@ -76,12 +68,12 @@ public class Transaction {
         this.type = type;
     }
 
-    public String getDate() {
-        return date;
+    public int getDayOfMonth() {
+        return dayOfMonth;
     }
 
-    public void setDate(String date) {
-        this.date = date;
+    public void setDayOfMonth(int dayOfMonth) {
+        this.dayOfMonth = dayOfMonth;
     }
 
     public String getUserId() {

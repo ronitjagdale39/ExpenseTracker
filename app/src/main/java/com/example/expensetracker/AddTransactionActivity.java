@@ -26,10 +26,13 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.example.expensetracker.database.AppDatabase;
+import com.example.expensetracker.database.RecurringTransaction;
 import com.example.expensetracker.database.Transaction;
 import com.example.expensetracker.database.TransactionDao;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
@@ -39,6 +42,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -63,6 +67,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
     private MaterialButton btnSaveTransaction;
     private MaterialButton btnScanReceipt;
+    private com.google.android.material.checkbox.MaterialCheckBox cbRecurring;
 
 
     // =========================================
@@ -181,6 +186,9 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         btnScanReceipt =
                 findViewById(R.id.btnScanReceipt);
+
+        cbRecurring =
+                findViewById(R.id.cbRecurring);
 
 
         // =========================================
@@ -577,7 +585,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                     "Amount detected: ₹"
                             + detectedAmount,
                     Toast.LENGTH_SHORT
-            );
+            ).show();
 
         } else {
 
@@ -1172,6 +1180,12 @@ public class AddTransactionActivity extends AppCompatActivity {
                         Locale.getDefault()
                 ).format(new Date());
 
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String uid = user.getUid();
 
         Transaction transaction =
                 new Transaction(
@@ -1179,7 +1193,8 @@ public class AddTransactionActivity extends AppCompatActivity {
                         description,
                         category,
                         type,
-                        date
+                        date,
+                        uid
                 );
 
 
@@ -1188,6 +1203,15 @@ public class AddTransactionActivity extends AppCompatActivity {
             transactionDao.insert(
                     transaction
             );
+
+            if (cbRecurring != null && cbRecurring.isChecked()) {
+                Calendar cal = Calendar.getInstance();
+                int day = cal.get(Calendar.DAY_OF_MONTH);
+                RecurringTransaction rt = new RecurringTransaction(
+                        amount, description, category, type, day, uid
+                );
+                transactionDao.insertRecurring(rt);
+            }
 
 
             runOnUiThread(() -> {
@@ -1296,6 +1320,9 @@ public class AddTransactionActivity extends AppCompatActivity {
                         ? "Income"
                         : "Expense";
 
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+        String uid = user.getUid();
 
         Transaction updatedTransaction =
                 new Transaction(
@@ -1303,7 +1330,8 @@ public class AddTransactionActivity extends AppCompatActivity {
                         description,
                         category,
                         type,
-                        existingTransaction.getDate()
+                        existingTransaction.getDate(),
+                        uid
                 );
 
 

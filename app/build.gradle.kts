@@ -1,15 +1,16 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.google.services)
 }
 
 android {
     namespace = "com.example.expensetracker"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.expensetracker"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -32,7 +33,6 @@ dependencies {
     implementation(libs.mlkit.text.recognition)
     implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     // AndroidX
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.core:core-ktx:1.17.0")
@@ -40,6 +40,13 @@ dependencies {
     // Material Design
     implementation("com.google.android.material:material:1.12.0")
     implementation(libs.androidx.recyclerview)
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.biometric)
+
     // Room Database
     implementation("androidx.room:room-runtime:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")
