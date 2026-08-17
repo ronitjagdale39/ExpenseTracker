@@ -1,6 +1,7 @@
 package com.example.expensetracker;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
@@ -48,232 +49,778 @@ import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView tvBalance, tvIncome, tvExpense, tvBudgetText;
-    private Button btnAddTransaction, btnAnalytics, btnSettings;
-    private ImageButton btnFilter, btnBulkScan;
+    private TextView tvBalance;
+    private TextView tvIncome;
+    private TextView tvExpense;
+    private TextView tvBudgetText;
+    private TextView tvSavings;
+    private TextView tvSavingsRate;
+    private TextView tvIncomeMini;
+    private TextView tvExpenseMini;
+    private TextView tvBudgetStatus;
+
+    private Button btnAddTransaction;
+    private Button btnAnalytics;
+    private Button btnSettings;
+
+    private ImageButton btnFilter;
+    private ImageButton btnBulkScan;
+
     private SearchView searchView;
     private RecyclerView recyclerTransactions;
     private LinearProgressIndicator budgetProgress;
 
     private TransactionDao transactionDao;
     private TransactionAdapter transactionAdapter;
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    private final ExecutorService executorService =
+            Executors.newSingleThreadExecutor();
 
     private String currentSearchQuery = "";
     private String currentCategoryFilter = null;
 
     private final ActivityResultLauncher<String> bulkScanLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetMultipleContents(), this::processBulkImages);
+            registerForActivityResult(
+                    new ActivityResultContracts.GetMultipleContents(),
+                    this::processBulkImages
+            );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
 
-        tvBalance = findViewById(R.id.tvBalance);
-        tvIncome = findViewById(R.id.tvIncome);
-        tvExpense = findViewById(R.id.tvExpense);
-        tvBudgetText = findViewById(R.id.tvBudgetText);
-        budgetProgress = findViewById(R.id.budgetProgress);
-        
-        btnAddTransaction = findViewById(R.id.btnAddTransaction);
-        btnAnalytics = findViewById(R.id.btnAnalytics);
-        btnSettings = findViewById(R.id.btnSettings);
-        btnFilter = findViewById(R.id.btnFilter);
-        btnBulkScan = findViewById(R.id.btnBulkScan);
-        searchView = findViewById(R.id.searchView);
-        recyclerTransactions = findViewById(R.id.recyclerTransactions);
+        initializeViews();
 
-        recyclerTransactions.setLayoutManager(new LinearLayoutManager(this));
-        recyclerTransactions.setNestedScrollingEnabled(false);
+        transactionDao =
+                AppDatabase
+                        .getInstance(this)
+                        .transactionDao();
 
-        transactionDao = AppDatabase.getInstance(this).transactionDao();
-
-        btnAddTransaction.setOnClickListener(view -> startActivity(new Intent(this, AddTransactionActivity.class)));
-        btnAnalytics.setOnClickListener(view -> startActivity(new Intent(this, AnalyticsActivity.class)));
-        btnSettings.setOnClickListener(view -> startActivity(new Intent(this, SettingsActivity.class)));
-        btnBulkScan.setOnClickListener(v -> bulkScanLauncher.launch("image/*"));
-
+        setupRecyclerView();
+        setupButtons();
         setupSearchAndFilter();
+
         loadDashboard();
+
         scheduleWeeklySync();
         scheduleDailyRecurringCheck();
     }
 
+    private void initializeViews() {
+
+        tvBalance =
+                findViewById(R.id.tvBalance);
+
+        tvIncome =
+                findViewById(R.id.tvIncome);
+
+        tvExpense =
+                findViewById(R.id.tvExpense);
+
+        tvBudgetText =
+                findViewById(R.id.tvBudgetText);
+
+        tvSavings =
+                findViewById(R.id.tvSavings);
+
+        tvSavingsRate =
+                findViewById(R.id.tvSavingsRate);
+
+        tvIncomeMini =
+                findViewById(R.id.tvIncomeMini);
+
+        tvExpenseMini =
+                findViewById(R.id.tvExpenseMini);
+
+        tvBudgetStatus =
+                findViewById(R.id.tvBudgetStatus);
+
+        budgetProgress =
+                findViewById(R.id.budgetProgress);
+
+        btnAddTransaction =
+                findViewById(R.id.btnAddTransaction);
+
+        btnAnalytics =
+                findViewById(R.id.btnAnalytics);
+
+        btnSettings =
+                findViewById(R.id.btnSettings);
+
+        btnFilter =
+                findViewById(R.id.btnFilter);
+
+        btnBulkScan =
+                findViewById(R.id.btnBulkScan);
+
+        searchView =
+                findViewById(R.id.searchView);
+
+        recyclerTransactions =
+                findViewById(R.id.recyclerTransactions);
+    }
+
+    private void setupRecyclerView() {
+
+        recyclerTransactions.setLayoutManager(
+                new LinearLayoutManager(this)
+        );
+
+        recyclerTransactions.setNestedScrollingEnabled(
+                false
+        );
+    }
+
+    private void setupButtons() {
+
+        btnAddTransaction.setOnClickListener(
+                v -> startActivity(
+                        new Intent(
+                                this,
+                                AddTransactionActivity.class
+                        )
+                )
+        );
+
+        btnAnalytics.setOnClickListener(
+                v -> startActivity(
+                        new Intent(
+                                this,
+                                AnalyticsActivity.class
+                        )
+                )
+        );
+
+        btnSettings.setOnClickListener(
+                v -> startActivity(
+                        new Intent(
+                                this,
+                                SettingsActivity.class
+                        )
+                )
+        );
+
+        btnBulkScan.setOnClickListener(
+                v -> bulkScanLauncher.launch("image/*")
+        );
+    }
+
     private void setupSearchAndFilter() {
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                currentSearchQuery = query;
-                loadDashboard();
-                return true;
-            }
 
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                currentSearchQuery = newText;
-                loadDashboard();
-                return true;
-            }
-        });
+        searchView.setOnQueryTextListener(
+                new SearchView.OnQueryTextListener() {
 
-        btnFilter.setOnClickListener(v -> showFilterDialog());
+                    @Override
+                    public boolean onQueryTextSubmit(
+                            String query
+                    ) {
+
+                        currentSearchQuery =
+                                query == null
+                                        ? ""
+                                        : query.trim();
+
+                        loadDashboard();
+
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onQueryTextChange(
+                            String newText
+                    ) {
+
+                        currentSearchQuery =
+                                newText == null
+                                        ? ""
+                                        : newText.trim();
+
+                        loadDashboard();
+
+                        return true;
+                    }
+                }
+        );
+
+        btnFilter.setOnClickListener(
+                v -> showFilterDialog()
+        );
     }
 
     private void showFilterDialog() {
-        String[] categories = {"All", "Food", "Travel", "Shopping", "Bills", "Entertainment", "Health", "Education", "Salary", "Other"};
+
+        String[] categories = {
+                "All",
+                "Food",
+                "Travel",
+                "Shopping",
+                "Bills",
+                "Entertainment",
+                "Health",
+                "Education",
+                "Salary",
+                "Other"
+        };
+
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Filter by Category")
-                .setItems(categories, (dialog, which) -> {
-                    if (which == 0) {
-                        currentCategoryFilter = null;
-                    } else {
-                        currentCategoryFilter = categories[which];
-                    }
-                    loadDashboard();
-                })
+                .setItems(
+                        categories,
+                        (dialog, which) -> {
+
+                            if (which == 0) {
+
+                                currentCategoryFilter =
+                                        null;
+
+                            } else {
+
+                                currentCategoryFilter =
+                                        categories[which];
+                            }
+
+                            loadDashboard();
+                        }
+                )
                 .show();
     }
 
-    private void processBulkImages(List<Uri> uris) {
-        if (uris == null || uris.isEmpty()) return;
+    private void processBulkImages(
+            List<Uri> uris
+    ) {
 
-        Toast.makeText(this, "Scanning " + uris.size() + " images...", Toast.LENGTH_SHORT).show();
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
-        String uid = user.getUid();
-        String date = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(new Date());
+        if (uris == null ||
+                uris.isEmpty()) {
+            return;
+        }
 
-        TextRecognizer recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+        Toast.makeText(
+                this,
+                "Scanning "
+                        + uris.size()
+                        + " images...",
+                Toast.LENGTH_SHORT
+        ).show();
+
+        FirebaseUser user =
+                FirebaseAuth
+                        .getInstance()
+                        .getCurrentUser();
+
+        if (user == null) {
+            return;
+        }
+
+        String uid =
+                user.getUid();
+
+        String date =
+                new SimpleDateFormat(
+                        "dd-MM-yyyy",
+                        Locale.getDefault()
+                ).format(
+                        new Date()
+                );
+
+        TextRecognizer recognizer =
+                TextRecognition.getClient(
+                        TextRecognizerOptions.DEFAULT_OPTIONS
+                );
 
         executorService.execute(() -> {
+
             for (Uri uri : uris) {
+
                 try {
-                    InputImage image = InputImage.fromFilePath(this, uri);
-                    Text result = Tasks.await(recognizer.process(image));
-                    String text = result.getText();
-                    
-                    Double amount = OCRUtils.extractAmount(text);
-                    String description = OCRUtils.extractDescription(text);
-                    
-                    if (amount != null && amount > 0) {
-                        Transaction t = new Transaction(amount, description, "Other", "Expense", date, uid);
-                        transactionDao.insert(t);
+
+                    InputImage image =
+                            InputImage.fromFilePath(
+                                    this,
+                                    uri
+                            );
+
+                    Text result =
+                            Tasks.await(
+                                    recognizer.process(image)
+                            );
+
+                    String text =
+                            result.getText();
+
+                    Double amount =
+                            OCRUtils.extractAmount(
+                                    text
+                            );
+
+                    String description =
+                            OCRUtils.extractDescription(
+                                    text
+                            );
+
+                    if (amount != null &&
+                            amount > 0) {
+
+                        Transaction transaction =
+                                new Transaction(
+                                        amount,
+                                        description,
+                                        "Other",
+                                        "Expense",
+                                        date,
+                                        uid
+                                );
+
+                        transactionDao.insert(
+                                transaction
+                        );
                     }
+
                 } catch (Exception e) {
+
                     e.printStackTrace();
                 }
             }
+
             runOnUiThread(() -> {
-                Toast.makeText(this, "Bulk scan complete", Toast.LENGTH_SHORT).show();
+
+                Toast.makeText(
+                        this,
+                        "Bulk scan complete",
+                        Toast.LENGTH_SHORT
+                ).show();
+
                 loadDashboard();
             });
         });
     }
 
     private void scheduleWeeklySync() {
-        Constraints constraints = new Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build();
 
-        PeriodicWorkRequest syncRequest =
-                new PeriodicWorkRequest.Builder(SyncWorker.class, 7, TimeUnit.DAYS)
-                        .setConstraints(constraints)
+        Constraints constraints =
+                new Constraints.Builder()
+                        .setRequiredNetworkType(
+                                NetworkType.CONNECTED
+                        )
                         .build();
 
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-                "WeeklySync",
-                ExistingPeriodicWorkPolicy.KEEP,
-                syncRequest
-        );
+        PeriodicWorkRequest syncRequest =
+                new PeriodicWorkRequest.Builder(
+                        SyncWorker.class,
+                        7,
+                        TimeUnit.DAYS
+                )
+                        .setConstraints(
+                                constraints
+                        )
+                        .build();
+
+        WorkManager
+                .getInstance(this)
+                .enqueueUniquePeriodicWork(
+                        "WeeklySync",
+                        ExistingPeriodicWorkPolicy.KEEP,
+                        syncRequest
+                );
     }
 
     private void scheduleDailyRecurringCheck() {
+
         PeriodicWorkRequest recurringRequest =
-                new PeriodicWorkRequest.Builder(RecurringWorker.class, 1, TimeUnit.DAYS)
+                new PeriodicWorkRequest.Builder(
+                        RecurringWorker.class,
+                        1,
+                        TimeUnit.DAYS
+                )
                         .build();
 
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-                "DailyRecurring",
-                ExistingPeriodicWorkPolicy.KEEP,
-                recurringRequest
-        );
+        WorkManager
+                .getInstance(this)
+                .enqueueUniquePeriodicWork(
+                        "DailyRecurring",
+                        ExistingPeriodicWorkPolicy.KEEP,
+                        recurringRequest
+                );
     }
 
     @Override
     protected void onResume() {
+
         super.onResume();
-        if (transactionDao != null) loadDashboard();
+
+        if (transactionDao != null) {
+            loadDashboard();
+        }
     }
 
     private void loadDashboard() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
-        String uid = user.getUid();
+
+        FirebaseUser user =
+                FirebaseAuth
+                        .getInstance()
+                        .getCurrentUser();
+
+        if (user == null) {
+            return;
+        }
+
+        String uid =
+                user.getUid();
 
         executorService.execute(() -> {
-            Double income = transactionDao.getTotalIncome(uid);
-            Double expense = transactionDao.getTotalExpense(uid);
-            
-            if (income == null) income = 0.0;
-            if (expense == null) expense = 0.0;
-            
-            double balance = income - expense;
+
+            Double income =
+                    transactionDao.getTotalIncome(uid);
+
+            Double expense =
+                    transactionDao.getTotalExpense(uid);
+
+            if (income == null) {
+                income = 0.0;
+            }
+
+            if (expense == null) {
+                expense = 0.0;
+            }
+
+            double balance =
+                    income - expense;
 
             List<Transaction> transactions;
+
             if (currentCategoryFilter != null) {
-                transactions = transactionDao.filterByCategory(uid, currentCategoryFilter);
+
+                transactions =
+                        transactionDao
+                                .filterByCategory(
+                                        uid,
+                                        currentCategoryFilter
+                                );
+
             } else if (!currentSearchQuery.isEmpty()) {
-                transactions = transactionDao.searchTransactions(uid, "%" + currentSearchQuery + "%");
+
+                transactions =
+                        transactionDao.searchTransactions(
+                                uid,
+                                "%"
+                                        + currentSearchQuery
+                                        + "%"
+                        );
+
             } else {
-                transactions = transactionDao.getAllTransactions(uid);
+
+                transactions =
+                        transactionDao
+                                .getAllTransactions(uid);
             }
 
-            // Budget Calculation
-            String currentMonthYear = new SimpleDateFormat("MM-yyyy", Locale.getDefault()).format(new Date());
-            List<Budget> budgets = transactionDao.getBudgetsForMonth(uid, currentMonthYear);
+            String currentMonthYear =
+                    new SimpleDateFormat(
+                            "MM-yyyy",
+                            Locale.getDefault()
+                    ).format(
+                            new Date()
+                    );
+
+            List<Budget> budgets =
+                    transactionDao
+                            .getBudgetsForMonth(
+                                    uid,
+                                    currentMonthYear
+                            );
+
             double totalBudget = 0;
-            for (Budget b : budgets) totalBudget += b.getLimitAmount();
+
+            for (Budget budget : budgets) {
+
+                totalBudget +=
+                        budget.getLimitAmount();
+            }
 
             double totalMonthExpense = 0;
-            List<Transaction> allTransactions = transactionDao.getAllTransactions(uid);
-            for (Transaction t : allTransactions) {
-                if ("Expense".equalsIgnoreCase(t.getType()) && t.getDate().contains(currentMonthYear)) {
-                    totalMonthExpense += t.getAmount();
+
+            List<Transaction> allTransactions =
+                    transactionDao
+                            .getAllTransactions(uid);
+
+            for (Transaction transaction :
+                    allTransactions) {
+
+                if (
+                        "Expense".equalsIgnoreCase(
+                                transaction.getType()
+                        )
+                                &&
+                                transaction.getDate()
+                                        .contains(
+                                                currentMonthYear
+                                        )
+                ) {
+
+                    totalMonthExpense +=
+                            transaction.getAmount();
                 }
             }
 
-            double finalIncome = income;
-            double finalExpense = expense;
-            double finalBalance = balance;
-            double finalTotalBudget = totalBudget;
-            double finalMonthExpense = totalMonthExpense;
+            double finalIncome =
+                    income;
+
+            double finalExpense =
+                    expense;
+
+            double finalBalance =
+                    balance;
+
+            double finalBudget =
+                    totalBudget;
+
+            double finalMonthExpense =
+                    totalMonthExpense;
 
             runOnUiThread(() -> {
-                tvIncome.setText(String.format(Locale.getDefault(), "₹%.2f", finalIncome));
-                tvExpense.setText(String.format(Locale.getDefault(), "₹%.2f", finalExpense));
-                tvBalance.setText(String.format(Locale.getDefault(), "₹%.2f", finalBalance));
 
-                if (finalTotalBudget > 0) {
-                    int progress = (int) ((finalMonthExpense / finalTotalBudget) * 100);
-                    budgetProgress.setProgress(Math.min(progress, 100));
-                    tvBudgetText.setText(String.format(Locale.getDefault(), "₹%.2f spent of ₹%.2f", finalMonthExpense, finalTotalBudget));
-                } else {
-                    budgetProgress.setProgress(0);
-                    tvBudgetText.setText("Set a budget in Settings");
-                }
-
-                transactionAdapter = new TransactionAdapter(transactions, this::deleteTransaction);
-                recyclerTransactions.setAdapter(transactionAdapter);
+                updateDashboardUI(
+                        finalIncome,
+                        finalExpense,
+                        finalBalance,
+                        finalBudget,
+                        finalMonthExpense,
+                        transactions
+                );
             });
         });
     }
 
-    private void deleteTransaction(Transaction transaction) {
+    private void updateDashboardUI(
+            double income,
+            double expense,
+            double balance,
+            double budget,
+            double monthExpense,
+            List<Transaction> transactions
+    ) {
+
+        tvIncome.setText(
+                formatCurrency(income)
+        );
+
+        tvExpense.setText(
+                formatCurrency(expense)
+        );
+
+        tvBalance.setText(
+                formatCurrency(balance)
+        );
+
+        tvSavings.setText(
+                formatCurrency(balance)
+        );
+
+        tvIncomeMini.setText(
+                formatCompact(income)
+        );
+
+        tvExpenseMini.setText(
+                formatCompact(expense)
+        );
+
+        double savingsRate =
+                income > 0
+                        ? balance / income * 100
+                        : 0;
+
+        tvSavingsRate.setText(
+                String.format(
+                        Locale.getDefault(),
+                        "%.0f%% saved",
+                        savingsRate
+                )
+        );
+
+        updateBudget(
+                budget,
+                monthExpense
+        );
+
+        transactionAdapter =
+                new TransactionAdapter(
+                        transactions,
+                        this::deleteTransaction
+                );
+
+        recyclerTransactions.setAdapter(
+                transactionAdapter
+        );
+    }
+
+    private void updateBudget(
+            double budget,
+            double expense
+    ) {
+
+        if (budget <= 0) {
+
+            budgetProgress.setProgress(0);
+
+            tvBudgetText.setText(
+                    "Set a budget in Settings"
+            );
+
+            tvBudgetStatus.setText(
+                    "No budget"
+            );
+
+            tvBudgetStatus.setTextColor(
+                    Color.rgb(
+                            125,
+                            115,
+                            135
+                    )
+            );
+
+            return;
+        }
+
+        int progress =
+                (int)
+                        ((expense / budget) * 100);
+
+        budgetProgress.setProgress(
+                Math.min(
+                        progress,
+                        100
+                )
+        );
+
+        double remaining =
+                budget - expense;
+
+        if (remaining >= 0) {
+
+            tvBudgetText.setText(
+                    String.format(
+                            Locale.getDefault(),
+                            "₹%.2f remaining of ₹%.2f",
+                            remaining,
+                            budget
+                    )
+            );
+
+        } else {
+
+            tvBudgetText.setText(
+                    String.format(
+                            Locale.getDefault(),
+                            "₹%.2f over a ₹%.2f budget",
+                            Math.abs(remaining),
+                            budget
+                    )
+            );
+        }
+
+        if (progress >= 100) {
+
+            tvBudgetStatus.setText(
+                    "Over budget"
+            );
+
+            tvBudgetStatus.setTextColor(
+                    Color.rgb(
+                            190,
+                            55,
+                            55
+                    )
+            );
+
+        } else if (progress >= 80) {
+
+            tvBudgetStatus.setText(
+                    "Watch spending"
+            );
+
+            tvBudgetStatus.setTextColor(
+                    Color.rgb(
+                            190,
+                            125,
+                            30
+                    )
+            );
+
+        } else {
+
+            tvBudgetStatus.setText(
+                    "On track"
+            );
+
+            tvBudgetStatus.setTextColor(
+                    Color.rgb(
+                            55,
+                            125,
+                            78
+                    )
+            );
+        }
+    }
+
+    private String formatCurrency(
+            double amount
+    ) {
+
+        return String.format(
+                Locale.getDefault(),
+                "₹%,.2f",
+                amount
+        );
+    }
+
+    private String formatCompact(
+            double amount
+    ) {
+
+        if (amount >= 100000) {
+
+            return String.format(
+                    Locale.getDefault(),
+                    "₹%.1fL",
+                    amount / 100000.0
+            );
+        }
+
+        if (amount >= 1000) {
+
+            return String.format(
+                    Locale.getDefault(),
+                    "₹%.1fk",
+                    amount / 1000.0
+            );
+        }
+
+        return String.format(
+                Locale.getDefault(),
+                "₹%.0f",
+                amount
+        );
+    }
+
+    private void deleteTransaction(
+            Transaction transaction
+    ) {
+
         executorService.execute(() -> {
-            transactionDao.delete(transaction);
+
+            transactionDao.delete(
+                    transaction
+            );
+
             runOnUiThread(() -> {
-                Toast.makeText(this, "Transaction deleted", Toast.LENGTH_SHORT).show();
+
+                Toast.makeText(
+                        this,
+                        "Transaction deleted",
+                        Toast.LENGTH_SHORT
+                ).show();
+
                 loadDashboard();
             });
         });
@@ -281,7 +828,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+
         super.onDestroy();
+
         executorService.shutdown();
     }
 }
