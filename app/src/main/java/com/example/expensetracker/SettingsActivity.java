@@ -7,7 +7,6 @@ import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -230,7 +229,7 @@ public class SettingsActivity extends AppCompatActivity {
             
             canvas.drawText(t.getCategory(), 340, y, paint);
 
-            String amountStr = String.format("₹%.2f", t.getAmount());
+            String amountStr = String.format(Locale.getDefault(), "₹%.2f", t.getAmount());
             if ("Income".equalsIgnoreCase(t.getType())) {
                 totalIncome += t.getAmount();
                 paint.setColor(Color.GREEN);

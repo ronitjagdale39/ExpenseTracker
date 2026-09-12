@@ -31,14 +31,13 @@ android {
 
 dependencies {
     implementation(libs.mlkit.text.recognition)
-    implementation("com.google.mlkit:text-recognition:16.0.1")
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    implementation(libs.mpandroidchart)
     // AndroidX
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("androidx.core:core-ktx:1.17.0")
+    implementation(libs.appcompat)
+    implementation(libs.androidx.core.ktx)
 
     // Material Design
-    implementation("com.google.android.material:material:1.12.0")
+    implementation(libs.material)
     implementation(libs.androidx.recyclerview)
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -48,14 +47,14 @@ dependencies {
     implementation(libs.androidx.biometric)
 
     // Room Database
-    implementation("androidx.room:room-runtime:2.7.2")
-    implementation("androidx.room:room-ktx:2.7.2")
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
 
     // Room compiler for JAVA
-    annotationProcessor("androidx.room:room-compiler:2.7.2")
+    annotationProcessor(libs.room.compiler)
 
     // Testing
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.ext.junit)
+    androidTestImplementation(libs.espresso.core)
 }
