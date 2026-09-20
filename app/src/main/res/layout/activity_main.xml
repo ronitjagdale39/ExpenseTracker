@@ -73,7 +73,7 @@
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="205dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             app:cardBackgroundColor="#7E57C2"
             app:cardCornerRadius="26dp"
@@ -81,10 +81,10 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:background="@drawable/bg_balance"
                 android:orientation="vertical"
-                android:padding="22dp">
+                android:padding="20dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
