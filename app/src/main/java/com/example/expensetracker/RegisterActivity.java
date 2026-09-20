@@ -78,7 +78,31 @@ public class RegisterActivity extends AppCompatActivity {
         }
 
         if (password.length() < 6) {
-            etPassword.setError("Password should be at least 6 characters");
+            etPassword.setError("Password must be at least 6 characters");
+            etPassword.requestFocus();
+            return;
+        }
+
+        if (!password.matches(".*[A-Z].*")) {
+            etPassword.setError("Password must contain at least one uppercase letter (A-Z)");
+            etPassword.requestFocus();
+            return;
+        }
+
+        if (!password.matches(".*[a-z].*")) {
+            etPassword.setError("Password must contain at least one lowercase letter (a-z)");
+            etPassword.requestFocus();
+            return;
+        }
+
+        if (!password.matches(".*\\d.*")) {
+            etPassword.setError("Password must contain at least one number (0-9)");
+            etPassword.requestFocus();
+            return;
+        }
+
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
+            etPassword.setError("Password must contain at least one special character (!@#$%^&*)");
             etPassword.requestFocus();
             return;
         }
