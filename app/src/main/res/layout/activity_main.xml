@@ -57,18 +57,6 @@
         </RelativeLayout>
 
 
-        <!-- SEARCH -->
-
-        <androidx.appcompat.widget.SearchView
-            android:id="@+id/searchView"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="18dp"
-            android:background="@drawable/search_background"
-            app:iconifiedByDefault="false"
-            app:queryHint="Search transactions..." />
-
-
         <!-- HERO -->
 
         <com.google.android.material.card.MaterialCardView
@@ -402,6 +390,18 @@
                 app:cornerRadius="17dp" />
 
         </LinearLayout>
+
+
+        <!-- SEARCH -->
+
+        <androidx.appcompat.widget.SearchView
+            android:id="@+id/searchView"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/search_background"
+            app:iconifiedByDefault="false"
+            app:queryHint="Search transactions..." />
 
 
         <!-- RECENT -->
