@@ -24,6 +24,8 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@+id/headerActions"
                 android:orientation="vertical">
 
                 <TextView
@@ -44,29 +46,37 @@
 
             </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/btnBulkScan"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+            <LinearLayout
+                android:id="@+id/headerActions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Scan receipts"
-                android:src="@android:drawable/ic_menu_gallery"
-                app:tint="#6E5AA5" />
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btnBulkScan"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Scan receipts"
+                    android:src="@android:drawable/ic_menu_gallery"
+                    app:tint="#6E5AA5" />
+
+                <ImageButton
+                    android:id="@+id/btnSettings"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Settings"
+                    android:src="@android:drawable/ic_menu_preferences"
+                    app:tint="#6E5AA5" />
+
+            </LinearLayout>
 
         </RelativeLayout>
-
-
-        <!-- SEARCH -->
-
-        <androidx.appcompat.widget.SearchView
-            android:id="@+id/searchView"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="18dp"
-            android:background="@drawable/search_background"
-            app:iconifiedByDefault="false"
-            app:queryHint="Search transactions..." />
 
 
         <!-- HERO -->
@@ -404,6 +414,18 @@
         </LinearLayout>
 
 
+        <!-- SEARCH -->
+
+        <androidx.appcompat.widget.SearchView
+            android:id="@+id/searchView"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/search_background"
+            app:iconifiedByDefault="false"
+            app:queryHint="Search transactions..." />
+
+
         <!-- RECENT -->
 
         <LinearLayout
@@ -438,21 +460,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:nestedScrollingEnabled="false" />
-
-
-        <!-- SETTINGS -->
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSettings"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="10dp"
             android:layout_marginBottom="24dp"
-            android:text="Settings"
-            android:textAllCaps="false"
-            android:textColor="#76668F" />
+            android:nestedScrollingEnabled="false" />
 
     </LinearLayout>
 

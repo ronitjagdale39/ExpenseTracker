@@ -61,8 +61,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Button btnAddTransaction;
     private Button btnAnalytics;
-    private Button btnSettings;
 
+    private ImageButton btnSettings;
     private ImageButton btnFilter;
     private ImageButton btnBulkScan;
 
